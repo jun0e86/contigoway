@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · 스케줄</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;--pink:#FF2D55;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;height:48px;font-size:.82rem;font-weight:500}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links a{color:var(--gray);text-decoration:none}
+  .nav-links .active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:760px;margin:0 auto;padding:0 24px 100px}
+
+  .page-header{display:flex;justify-content:space-between;align-items:center;padding:36px 0 18px}
+  .page-header h1{font-size:1.5rem;font-weight:700}
+  .view-toggle{display:flex;background:var(--panel);border-radius:980px;padding:4px}
+  .view-toggle button{border:none;background:none;padding:7px 16px;border-radius:980px;font-size:.82rem;font-weight:600;color:var(--gray);cursor:pointer}
+  .view-toggle button.active{background:#fff;color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+  .month-nav{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:16px}
+  .month-nav button{border:none;background:var(--panel);width:32px;height:32px;border-radius:50%;font-size:1rem;cursor:pointer}
+  .month-nav .month-label{font-size:1.05rem;font-weight:700;min-width:110px;text-align:center}
+
+  .legend{display:flex;gap:16px;justify-content:center;font-size:.78rem;color:var(--gray);margin-bottom:14px}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.mine{background:var(--blue)}
+  .dot.partner{background:var(--pink)}
+
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .weekday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+  .weekday-row div{text-align:center;font-size:.75rem;color:var(--gray-light);font-weight:600}
+  .day-cell{aspect-ratio:1;border-radius:12px;background:var(--panel);padding:6px;cursor:pointer;display:flex;flex-direction:column;position:relative}
+  .day-cell.empty{background:none;cursor:default}
+  .day-cell.today{outline:2px solid var(--blue)}
+  .day-cell .num{font-size:.8rem;font-weight:600;color:var(--gray)}
+  .day-cell .dots{display:flex;gap:3px;margin-top:auto;flex-wrap:wrap}
+
+  .new-btn{background:var(--black);color:#fff;border:none;border-radius:980px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow-y:auto;padding:40px 16px}
+  .overlay.open{display:flex}
+  .sheet{background:#fff;border-radius:22px;max-width:440px;width:100%;padding:30px;margin-top:20px}
+  .sheet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .sheet-header h2{font-size:1.1rem;font-weight:700}
+  .sheet-close{cursor:pointer;color:var(--gray);font-size:1.3rem;background:none;border:none}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.78rem;color:var(--gray);margin-bottom:5px;font-weight:600}
+  .field input, .field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:.88rem;outline:none;font-family:inherit}
+  .field textarea{min-height:70px;resize:vertical}
+  .field input:focus, .field textarea:focus{border-color:var(--blue)}
+
+  .day-event{background:var(--panel);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+  .day-event .ev-owner{font-size:.72rem;font-weight:700;margin-bottom:2px}
+  .day-event.mine .ev-owner{color:var(--blue)}
+  .day-event.partner .ev-owner{color:var(--pink)}
+  .day-event .ev-title{font-size:.92rem;font-weight:600}
+  .day-event .ev-time{font-size:.78rem;color:var(--gray)}
+
+  .btn-primary{flex:1;padding:12px;background:var(--black);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer}
+  .btn-danger{padding:12px 16px;background:#fff;color:#D93025;border:1px solid #F3C0C0;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer}
+  .btn-secondary{padding:12px 16px;background:var(--panel);color:var(--black);border:none;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer}
+  .sheet-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+
+  .empty-day{text-align:center;color:var(--gray-light);font-size:.85rem;padding:20px 0}
+
+  .sub-section{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+  .sub-section h3{font-size:.92rem;font-weight:700;margin-bottom:10px}
+  .sub-section p{font-size:.8rem;color:var(--gray);line-height:1.6;margin-bottom:12px}
+  .url-box{display:flex;gap:6px;margin-bottom:8px}
+  .url-box input{flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.78rem;background:var(--panel);color:var(--gray)}
+  .url-box button{padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:.78rem;cursor:pointer}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit;font-weight:600">contigoway</a>
+    <div class="nav-links">
+      <a href="/index.html">여행</a>
+      <a href="/diary.html">일기</a>
+      <a href="/todo.html">TODO</a>
+      <span class="active">스케줄</span>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>스케줄</h1>
+    <div class="view-toggle">
+      <button id="btnViewMine" onclick="switchView('mine')">내 스케줄</button>
+      <button id="btnViewCouple" onclick="switchView('couple')">커플 스케줄</button>
+    </div>
+  </div>
+
+  <div class="month-nav">
+    <button onclick="changeMonth(-1)">‹</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button onclick="changeMonth(1)">›</button>
+  </div>
+
+  <div class="legend" id="legendRow" style="display:none">
+    <span><span class="dot mine"></span>내 일정</span>
+    <span><span class="dot partner"></span>파트너 일정</span>
+  </div>
+
+  <div class="weekday-row">
+    <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+  </div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+
+  <div class="sub-section">
+    <h3>📅 캘린더 구독</h3>
+    <p>구독 링크를 발급받아 애플 캘린더 또는 구글 캘린더에 "URL로 구독"으로 등록하면, 새 일정을 추가할 때마다 자동으로 동기화돼요.</p>
+    <div id="feedTokenBox"></div>
+  </div>
+</main>
+
+<div class="overlay" id="dayOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="dayTitle"></h2>
+      <button class="sheet-close" onclick="closeDayOverlay()">✕</button>
+    </div>
+    <div id="dayEventList"></div>
+    <button class="new-btn" style="width:100%;margin-top:10px" onclick="openEventEditor(null, currentDayDate)">+ 이 날짜에 일정 추가</button>
+  </div>
+</div>
+
+<div class="overlay" id="eventOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="eventEditorTitle">새 일정</h2>
+      <button class="sheet-close" onclick="closeEventEditor()">✕</button>
+    </div>
+    <div class="field"><label>제목</label><input type="text" id="evTitle"></div>
+    <div class="field"><label>날짜</label><input type="date" id="evDate"></div>
+    <div class="field"><label>시간 (선택)</label><input type="time" id="evTime"></div>
+    <div class="field"><label>메모 (선택)</label><textarea id="evDesc"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-danger" id="evDeleteBtn" style="display:none" onclick="deleteEvent()">삭제</button>
+      <button class="btn-primary" onclick="saveEvent()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="detailOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="detTitle"></h2>
+      <button class="sheet-close" onclick="closeEventDetail()">✕</button>
+    </div>
+    <div style="font-size:.85rem;color:var(--gray);margin-bottom:6px" id="detWhen"></div>
+    <div style="font-size:.9rem;margin-bottom:16px;white-space:pre-wrap" id="detDesc"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="shareEventText()">📋 텍스트 공유</button>
+      <button class="btn-secondary" onclick="openGoogleCalendar()">구글 캘린더 추가</button>
+      <button class="btn-secondary" onclick="downloadIcs()">.ics 다운로드</button>
+    </div>
+    <div class="sheet-actions" id="detOwnerActions">
+      <button class="btn-danger" onclick="deleteEventFromDetail()">삭제</button>
+      <button class="btn-primary" onclick="editEventFromDetail()">수정</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){ localStorage.clear(); location.href = '/login.html'; }
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+const params = new URLSearchParams(location.search);
+let viewMode = params.get('view') === 'couple' ? 'couple' : 'mine';
+let curYear, curMonth;
+let monthEvents = [];
+let currentDayDate = null;
+let editingEventId = null;
+let currentDetail = null;
+
+(async function init(){
+  const now = new Date();
+  curYear = now.getFullYear();
+  curMonth = now.getMonth()+1;
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+  }catch(e){}
+  updateViewToggleUI();
+  await loadMonth();
+  loadFeedToken();
+})();
+
+function switchView(v){ viewMode = v; updateViewToggleUI(); loadMonth(); }
+function updateViewToggleUI(){
+  document.getElementById('btnViewMine').classList.toggle('active', viewMode==='mine');
+  document.getElementById('btnViewCouple').classList.toggle('active', viewMode==='couple');
+  document.getElementById('legendRow').style.display = viewMode==='couple' ? 'flex' : 'none';
+}
+
+function changeMonth(delta){
+  curMonth += delta;
+  if(curMonth < 1){ curMonth = 12; curYear--; }
+  if(curMonth > 12){ curMonth = 1; curYear++; }
+  loadMonth();
+}
+
+async function loadMonth(){
+  document.getElementById('monthLabel').textContent = `${curYear}년 ${curMonth}월`;
+  const path = viewMode === 'couple' ? '/schedule/couple' : '/schedule';
+  const r = await authFetch(`${path}?year=${curYear}&month=${curMonth}`);
+  monthEvents = await r.json();
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const grid = document.getElementById('calendarGrid');
+  const firstDay = new Date(curYear, curMonth-1, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(curYear, curMonth, 0).getDate();
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  let html = '';
+  for(let i=0;i<startWeekday;i++) html += '<div class="day-cell empty"></div>';
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = monthEvents.filter(e=>e.event_date===dateStr);
+    const isToday = dateStr === todayStr;
+    const dots = dayEvents.slice(0,4).map(e=>{
+      const cls = viewMode==='couple' ? (e.is_mine ? 'mine' : 'partner') : 'mine';
+      return `<span class="dot ${cls}"></span>`;
+    }).join('');
+    html += `<div class="day-cell${isToday?' today':''}" onclick="openDayOverlay('${dateStr}')">
+      <span class="num">${d}</span><div class="dots">${dots}</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function openDayOverlay(dateStr){
+  currentDayDate = dateStr;
+  document.getElementById('dayTitle').textContent = dateStr;
+  const dayEvents = monthEvents.filter(e=>e.event_date===dateStr).sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
+  const box = document.getElementById('dayEventList');
+  if(!dayEvents.length){
+    box.innerHTML = '<div class="empty-day">이 날짜엔 일정이 없어요</div>';
+  }else{
+    box.innerHTML = dayEvents.map(e=>{
+      const ownerCls = viewMode==='couple' ? (e.is_mine ? 'mine':'partner') : 'mine';
+      const ownerLabel = viewMode==='couple' ? (e.is_mine ? '나' : e.owner_full_name) : '';
+      return `
+      <div class="day-event ${ownerCls}" onclick='openEventDetail(${JSON.stringify(e)})'>
+        ${ownerLabel ? `<div class="ev-owner">${ownerLabel}</div>` : ''}
+        <div class="ev-title">${e.title}</div>
+        ${e.event_time ? `<div class="ev-time">${e.event_time}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('dayOverlay').classList.add('open');
+}
+function closeDayOverlay(){ document.getElementById('dayOverlay').classList.remove('open'); }
+
+function openEventEditor(event, defaultDate){
+  editingEventId = event ? event.id : null;
+  document.getElementById('eventEditorTitle').textContent = event ? '일정 수정' : '새 일정';
+  document.getElementById('evTitle').value = event ? event.title : '';
+  document.getElementById('evDate').value = event ? event.event_date : (defaultDate || new Date().toISOString().slice(0,10));
+  document.getElementById('evTime').value = event ? (event.event_time||'') : '';
+  document.getElementById('evDesc').value = event ? (event.description||'') : '';
+  document.getElementById('evDeleteBtn').style.display = event ? 'block' : 'none';
+  document.getElementById('eventOverlay').classList.add('open');
+}
+function closeEventEditor(){ document.getElementById('eventOverlay').classList.remove('open'); }
+
+async function saveEvent(){
+  const title = document.getElementById('evTitle').value.trim();
+  const event_date = document.getElementById('evDate').value;
+  const event_time = document.getElementById('evTime').value || null;
+  const description = document.getElementById('evDesc').value.trim() || null;
+  if(!title || !event_date){ alert('제목과 날짜를 입력해주세요'); return; }
+  const payload = {title, event_date, event_time, description};
+  const path = editingEventId ? '/schedule/'+editingEventId : '/schedule';
+  const method = editingEventId ? 'PUT' : 'POST';
+  const r = await authFetch(path, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  if(!r.ok){ alert('저장 실패'); return; }
+  closeEventEditor();
+  closeDayOverlay();
+  await loadMonth();
+}
+
+async function deleteEvent(){
+  if(!editingEventId) return;
+  if(!confirm('이 일정을 삭제할까요?')) return;
+  await authFetch('/schedule/'+editingEventId, {method:'DELETE'});
+  closeEventEditor();
+  closeDayOverlay();
+  await loadMonth();
+}
+
+function openEventDetail(e){
+  currentDetail = e;
+  document.getElementById('detTitle').textContent = e.title;
+  document.getElementById('detWhen').textContent = e.event_date + (e.event_time ? ' ' + e.event_time : '');
+  document.getElementById('detDesc').textContent = e.description || '';
+  document.getElementById('detOwnerActions').style.display = (viewMode==='couple' && !e.is_mine) ? 'none' : 'flex';
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeEventDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+function editEventFromDetail(){
+  closeEventDetail();
+  closeDayOverlay();
+  openEventEditor(currentDetail);
+}
+async function deleteEventFromDetail(){
+  if(!confirm('이 일정을 삭제할까요?')) return;
+  await authFetch('/schedule/'+currentDetail.id, {method:'DELETE'});
+  closeEventDetail();
+  closeDayOverlay();
+  await loadMonth();
+}
+
+async function shareEventText(){
+  const r = await authFetch(`/schedule/${currentDetail.id}/share-text`);
+  const d = await r.json();
+  if(navigator.share){
+    try{ await navigator.share({text: d.text}); return; }catch(e){}
+  }
+  await navigator.clipboard.writeText(d.text);
+  alert('공유 텍스트가 클립보드에 복사됐어요!');
+}
+
+async function openGoogleCalendar(){
+  const r = await authFetch(`/schedule/${currentDetail.id}/google-calendar-link`);
+  const d = await r.json();
+  window.open(d.url, '_blank');
+}
+
+async function fetchAndDownloadIcs(id){
+  const r = await authFetch(`/schedule/${id}/export.ics`);
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `event_${id}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function downloadIcs(){ fetchAndDownloadIcs(currentDetail.id); }
+
+async function loadFeedToken(){
+  const r = await authFetch('/schedule/feed-token');
+  const d = await r.json();
+  renderFeedBox(d);
+}
+function renderFeedBox(d){
+  const box = document.getElementById('feedTokenBox');
+  if(d.feed_url){
+    box.innerHTML = `
+      <div class="url-box"><input readonly value="${d.feed_url}" id="feedUrlInput"><button onclick="copyFeedUrl()">복사</button></div>
+      <button class="btn-danger" onclick="revokeFeed()">구독 중지</button>
+    `;
+  }else{
+    box.innerHTML = `<button class="new-btn" onclick="createFeed()">구독 링크 발급받기</button>`;
+  }
+}
+async function createFeed(){
+  const r = await authFetch('/schedule/feed-token', {method:'POST'});
+  const d = await r.json();
+  renderFeedBox(d);
+}
+async function revokeFeed(){
+  if(!confirm('캘린더 구독을 중지할까요? 기존 링크는 즉시 무효화됩니다.')) return;
+  await authFetch('/schedule/feed-token', {method:'DELETE'});
+  renderFeedBox({feed_url:null});
+}
+function copyFeedUrl(){
+  const input = document.getElementById('feedUrlInput');
+  navigator.clipboard.writeText(input.value);
+  alert('구독 링크가 복사됐어요. 애플/구글 캘린더의 "URL로 구독"에 붙여넣으세요.');
+}
+</script>
+
+</body>
+</html>

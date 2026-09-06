@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · TODO</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;justify-content:center}
+  .nav-inner{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;height:48px;font-size:.82rem;font-weight:500}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links a{color:var(--gray);text-decoration:none}
+  .nav-links .active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:560px;margin:0 auto;padding:0 24px 100px}
+
+  .page-header{padding:36px 0 20px;text-align:center}
+  .page-header h1{font-size:1.5rem;font-weight:700}
+
+  .date-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:24px}
+  .date-nav button{border:none;background:var(--panel);width:32px;height:32px;border-radius:50%;font-size:1rem;cursor:pointer}
+  .date-nav input[type=date]{border:1px solid var(--line);border-radius:980px;padding:8px 16px;font-size:.9rem;font-weight:600;text-align:center;cursor:pointer}
+
+  .add-row{display:flex;gap:8px;margin-bottom:18px}
+  .add-row input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:.9rem;outline:none}
+  .add-row input:focus{border-color:var(--blue)}
+  .add-row button{background:var(--black);color:#fff;border:none;border-radius:12px;padding:0 18px;font-size:.88rem;font-weight:600;cursor:pointer}
+
+  .todo-item{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:14px 16px;margin-bottom:8px}
+  .todo-checkbox{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem}
+  .todo-checkbox.done{background:var(--blue);border-color:var(--blue);color:#fff}
+  .todo-content{flex:1;font-size:.92rem;word-break:break-word}
+  .todo-content.done{color:var(--gray-light);text-decoration:line-through}
+  .todo-actions{display:flex;gap:8px;flex-shrink:0}
+  .todo-actions span{font-size:.78rem;color:var(--gray-light);cursor:pointer}
+  .empty-state{text-align:center;color:var(--gray-light);padding:50px 0;font-size:.9rem}
+
+  .edit-input{flex:1;padding:6px 10px;border:1px solid var(--blue);border-radius:8px;font-size:.9rem;outline:none}
+
+  .sub-section{margin-top:32px;padding-top:20px;border-top:1px solid var(--line)}
+  .sub-section h3{font-size:.88rem;font-weight:700;margin-bottom:10px;color:var(--gray)}
+  .io-row{display:flex;gap:8px;flex-wrap:wrap}
+  .io-row button, .io-row label{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--black)}
+  .io-row input[type=file]{display:none}
+  .io-msg{font-size:.78rem;color:var(--gray);margin-top:8px;min-height:1em}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit;font-weight:600">contigoway</a>
+    <div class="nav-links">
+      <a href="/index.html">여행</a>
+      <a href="/diary.html">일기</a>
+      <span class="active">TODO</span>
+      <a href="/schedule.html">스케줄</a>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header"><h1>오늘의 TODO</h1></div>
+
+  <div class="date-nav">
+    <button onclick="changeDate(-1)">‹</button>
+    <input type="date" id="dateInput" onchange="onDateChange()">
+    <button onclick="changeDate(1)">›</button>
+  </div>
+
+  <div class="add-row">
+    <input type="text" id="newTodoInput" placeholder="할 일을 입력하세요" onkeydown="if(event.key==='Enter')addTodo()">
+    <button onclick="addTodo()">추가</button>
+  </div>
+
+  <div id="todoList"></div>
+
+  <div class="sub-section">
+    <h3>스프레드시트 연동</h3>
+    <div class="io-row">
+      <button onclick="exportTodos('xlsx')">📥 엑셀로 내보내기</button>
+      <button onclick="exportTodos('csv')">📥 CSV로 내보내기</button>
+      <label>📤 파일에서 가져오기<input type="file" id="importFile" accept=".xlsx,.csv" onchange="importTodos()"></label>
+    </div>
+    <div class="io-msg" id="ioMsg"></div>
+  </div>
+</main>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){ localStorage.clear(); location.href = '/login.html'; }
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+let currentDate = new Date().toISOString().slice(0,10);
+
+(async function init(){
+  document.getElementById('dateInput').value = currentDate;
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+  }catch(e){}
+  await loadTodos();
+})();
+
+function changeDate(delta){
+  const d = new Date(currentDate);
+  d.setDate(d.getDate()+delta);
+  currentDate = d.toISOString().slice(0,10);
+  document.getElementById('dateInput').value = currentDate;
+  loadTodos();
+}
+function onDateChange(){
+  currentDate = document.getElementById('dateInput').value;
+  loadTodos();
+}
+
+async function loadTodos(){
+  const r = await authFetch(`/todo?target_date=${currentDate}`);
+  const list = await r.json();
+  renderTodos(list);
+}
+
+function renderTodos(list){
+  const box = document.getElementById('todoList');
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state">이 날짜엔 할 일이 없어요</div>';
+    return;
+  }
+  box.innerHTML = list.map(t => `
+    <div class="todo-item" data-id="${t.id}">
+      <div class="todo-checkbox${t.is_done?' done':''}" onclick="toggleTodo(${t.id})">${t.is_done ? '✓' : ''}</div>
+      <div class="todo-content${t.is_done?' done':''}" id="content-${t.id}" ondblclick="startEdit(${t.id})">${t.content.replace(/</g,'&lt;')}</div>
+      <div class="todo-actions">
+        <span onclick="startEdit(${t.id})">수정</span>
+        <span onclick="deleteTodo(${t.id})">삭제</span>
+      </div>
+    </div>`).join('');
+}
+
+async function addTodo(){
+  const input = document.getElementById('newTodoInput');
+  const content = input.value.trim();
+  if(!content) return;
+  const r = await authFetch('/todo', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content, todo_date: currentDate})
+  });
+  if(!r.ok){ alert('추가 실패'); return; }
+  input.value = '';
+  loadTodos();
+}
+
+async function toggleTodo(id){
+  await authFetch(`/todo/${id}/toggle`, {method:'PATCH'});
+  loadTodos();
+}
+
+async function deleteTodo(id){
+  if(!confirm('삭제할까요?')) return;
+  await authFetch(`/todo/${id}`, {method:'DELETE'});
+  loadTodos();
+}
+
+function startEdit(id){
+  const el = document.getElementById('content-'+id);
+  const original = el.textContent;
+  el.outerHTML = `<input type="text" class="edit-input" id="content-${id}" value="${original.replace(/"/g,'&quot;')}"
+    onkeydown="if(event.key==='Enter')submitEdit(${id})" onblur="submitEdit(${id})">`;
+  document.getElementById('content-'+id).focus();
+}
+async function submitEdit(id){
+  const input = document.getElementById('content-'+id);
+  if(!input || input.tagName !== 'INPUT') return;
+  const content = input.value.trim();
+  if(!content){ loadTodos(); return; }
+  await authFetch(`/todo/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})
+  });
+  loadTodos();
+}
+
+async function exportTodos(format){
+  const r = await authFetch(`/todo/export?format=${format}`);
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `todo_export.${format}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function importTodos(){
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  if(!file) return;
+  const msg = document.getElementById('ioMsg');
+  msg.textContent = '가져오는 중...';
+  const fd = new FormData();
+  fd.append('file', file);
+  try{
+    const r = await authFetch(`/todo/import?default_date=${currentDate}`, {method:'POST', body: fd});
+    const d = await r.json();
+    if(!r.ok){ msg.textContent = d.detail || '가져오기 실패'; return; }
+    msg.textContent = d.message;
+    loadTodos();
+  }catch(e){
+    msg.textContent = '가져오기 중 오류가 발생했습니다';
+  }
+  fileInput.value = '';
+}
+</script>
+
+</body>
+</html>
