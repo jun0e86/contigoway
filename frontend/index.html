@@ -167,6 +167,7 @@
   <div class="nav-inner">
     <a href="/index.html" class="brand" style="text-decoration:none;color:inherit">contigoway</a>
     <div class="nav-links" id="navLinks">
+      <span class="nav-item" id="annAdminToggle" style="display:none" onclick="toggleAnnAdminPanel()">📢 공지관리</span>
       <span class="nav-item" data-menu="realestate">부동산</span>
       <span class="nav-item active" data-menu="travel">여행</span>
       <span class="nav-item" data-menu="photos">사진모음</span>
@@ -209,7 +210,7 @@
 
 <main>
   <div id="adminPanel"></div>
-  <div id="annAdminPanel"></div>
+  <div id="annAdminPanel" style="display:none"></div>
 
 
   <div class="hero">
@@ -286,6 +287,7 @@ async function authFetch(path, opts={}){
     if(me.role === 'admin'){
       loadAdminPanel();
       loadAnnAdminPanel();
+      document.getElementById('annAdminToggle').style.display = 'inline';
     }
   }catch(e){}
 })();
@@ -293,8 +295,8 @@ async function authFetch(path, opts={}){
 // ── 방문자 카운터 ──
 (async function trackVisit(){
   try{
-    await fetch(API + '/visits/ping', {method:'POST'});
-    const r = await fetch(API + '/visits/stats');
+    await fetch(API + '/site/hit', {method:'POST'});
+    const r = await fetch(API + '/site/counter');
     const d = await r.json();
     document.getElementById('visitCounter').innerHTML =
       `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
@@ -356,6 +358,11 @@ function closeAnnouncement(){
 }
 
 // ── 관리자 전용: 공지 작성 패널 ──
+function toggleAnnAdminPanel(){
+  const box = document.getElementById('annAdminPanel');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
 async function loadAnnAdminPanel(){
   const box = document.getElementById('annAdminPanel');
   let current = null;

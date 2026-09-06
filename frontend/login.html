@@ -109,8 +109,8 @@ const API = '/api';
 
 (async function trackVisit(){
   try{
-    await fetch(API + '/visits/ping', {method:'POST'});
-    const r = await fetch(API + '/visits/stats');
+    await fetch(API + '/site/hit', {method:'POST'});
+    const r = await fetch(API + '/site/counter');
     const d = await r.json();
     document.getElementById('visitCounter').innerHTML =
       `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
