@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · 일기</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;--pink:#FF2D55;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{
+    width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;
+    padding:0 22px;height:48px;font-size:.82rem;font-weight:500;
+  }
+  .nav-inner .brand{font-weight:600}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links a{color:var(--gray);text-decoration:none}
+  .nav-links .active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:680px;margin:0 auto;padding:0 24px 100px}
+
+  /* PIN 게이트 */
+  .pin-wrap{display:flex;flex-direction:column;align-items:center;padding:90px 24px}
+  .pin-card{background:#fff;border-radius:22px;padding:44px 40px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,.06);text-align:center}
+  .pin-icon{font-size:2.2rem;margin-bottom:10px}
+  .pin-card h2{font-size:1.15rem;font-weight:700;margin-bottom:8px}
+  .pin-card p{color:var(--gray);font-size:.85rem;margin-bottom:24px;line-height:1.5}
+  .pin-input{
+    width:100%;text-align:center;letter-spacing:.5em;font-size:1.4rem;padding:14px;
+    border:1px solid var(--line);border-radius:12px;outline:none;margin-bottom:12px;
+  }
+  .pin-input:focus{border-color:var(--blue)}
+  .pin-btn{
+    width:100%;padding:13px;background:var(--black);color:#fff;border:none;border-radius:10px;
+    font-size:.95rem;font-weight:600;cursor:pointer;margin-top:6px;
+  }
+  .pin-msg{font-size:.8rem;color:#D93025;margin-top:10px;min-height:1em}
+
+  /* 목록 헤더 */
+  .diary-header{display:flex;justify-content:space-between;align-items:center;padding:40px 0 20px}
+  .diary-header h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+  .new-btn{
+    background:var(--black);color:#fff;border:none;border-radius:980px;padding:10px 20px;
+    font-size:.86rem;font-weight:600;cursor:pointer;
+  }
+
+  .entry-card{
+    background:var(--panel);border-radius:18px;padding:20px 22px;margin-bottom:14px;cursor:pointer;
+    display:flex;gap:16px;align-items:flex-start;
+  }
+  .entry-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;flex-shrink:0;background:#e5e5ea}
+  .entry-body{flex:1;min-width:0}
+  .entry-date{font-size:.78rem;color:var(--gray);font-weight:600;margin-bottom:4px}
+  .entry-title{font-size:1rem;font-weight:700;margin-bottom:4px}
+  .entry-preview{font-size:.85rem;color:var(--gray);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .empty-state{text-align:center;color:var(--gray-light);padding:60px 0;font-size:.9rem}
+
+  /* 에디터 / 상세 오버레이 */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow-y:auto;padding:40px 16px}
+  .overlay.open{display:flex}
+  .sheet{background:#fff;border-radius:22px;max-width:560px;width:100%;padding:32px;margin-top:20px}
+  .sheet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .sheet-header h2{font-size:1.2rem;font-weight:700}
+  .sheet-close{cursor:pointer;color:var(--gray);font-size:1.3rem;background:none;border:none}
+
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:.78rem;color:var(--gray);margin-bottom:6px;font-weight:600}
+  .field input[type=date], .field textarea{
+    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;outline:none;font-family:inherit;
+  }
+  .field textarea{min-height:140px;resize:vertical;line-height:1.5}
+  .field input:focus, .field textarea:focus{border-color:var(--blue)}
+
+  .emoji-row{display:flex;gap:6px;flex-wrap:wrap}
+  .emoji-btn{font-size:1.3rem;background:var(--panel);border:2px solid transparent;border-radius:10px;padding:6px 10px;cursor:pointer}
+  .emoji-btn.active{border-color:var(--blue);background:#fff}
+
+  .example-link{font-size:.78rem;color:var(--blue);cursor:pointer;margin-top:6px;display:inline-block}
+  .example-box{background:var(--panel);border-radius:10px;padding:12px 14px;font-size:.82rem;color:var(--gray);margin-top:8px;line-height:1.5;white-space:pre-wrap}
+  .example-box .use-btn{display:block;margin-top:8px;font-size:.78rem;color:var(--blue);cursor:pointer;font-weight:600}
+
+  .file-drop{border:1.5px dashed var(--line);border-radius:12px;padding:18px;text-align:center;font-size:.82rem;color:var(--gray);cursor:pointer}
+  .file-drop input{display:none}
+  .preview-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .preview-item{position:relative;width:70px;height:70px;border-radius:10px;overflow:hidden;background:var(--panel)}
+  .preview-item img,.preview-item video{width:100%;height:100%;object-fit:cover}
+  .preview-item .vid-badge{position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.6);color:#fff;font-size:.6rem;padding:1px 5px;border-radius:6px}
+  .preview-item .remove{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;line-height:1}
+
+  .sheet-actions{display:flex;gap:10px;margin-top:22px}
+  .btn-primary{flex:1;padding:13px;background:var(--black);color:#fff;border:none;border-radius:10px;font-size:.92rem;font-weight:600;cursor:pointer}
+  .btn-danger{padding:13px 18px;background:#fff;color:#D93025;border:1px solid #F3C0C0;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer}
+
+  .detail-media{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+  .detail-media img,.detail-media video{width:110px;height:110px;object-fit:cover;border-radius:12px}
+  .detail-content{font-size:.95rem;line-height:1.7;white-space:pre-wrap;color:var(--black)}
+  .ai-comment-inline{background:#FFF8EA;border:1px solid #F3D9A8;border-radius:12px;padding:14px 16px;font-size:.85rem;line-height:1.6;color:var(--black);margin-top:16px;white-space:pre-wrap}
+  .feature-credit{font-size:.72rem;color:var(--gray-light);line-height:1.5;padding-top:14px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand">contigoway</div>
+    <div class="nav-links">
+      <a href="/index.html">여행</a>
+      <a href="/schedule.html">스케줄</a>
+      <span class="active">일기</span>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<!-- PIN 게이트 -->
+<div class="pin-wrap" id="pinWrap">
+  <div class="pin-card">
+    <div class="pin-icon">🔒</div>
+    <h2 id="pinTitle">일기 잠금</h2>
+    <p id="pinDesc">불러오는 중...</p>
+    <input type="password" inputmode="numeric" maxlength="6" class="pin-input" id="pinInput" placeholder="••••">
+    <div id="pinConfirmWrap" style="display:none">
+      <input type="password" inputmode="numeric" maxlength="6" class="pin-input" id="pinConfirmInput" placeholder="다시 입력">
+    </div>
+    <button class="pin-btn" id="pinSubmitBtn">확인</button>
+    <div class="pin-msg" id="pinMsg"></div>
+  </div>
+</div>
+
+<!-- 메인 일기 앱 -->
+<main id="diaryMain" style="display:none">
+  <div class="diary-header">
+    <h1>우리의 일기</h1>
+    <button class="new-btn" onclick="openEditor()">+ 새 일기</button>
+  </div>
+  <div id="entryList"></div>
+</main>
+
+<!-- 작성/수정 오버레이 -->
+<div class="overlay" id="editorOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="editorTitle">새 일기</h2>
+      <button class="sheet-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="field">
+      <label>날짜</label>
+      <input type="date" id="fDate">
+    </div>
+    <div class="field">
+      <label>오늘의 기분</label>
+      <div class="emoji-row" id="moodRow"></div>
+    </div>
+    <div class="field">
+      <label>제목 (선택)</label>
+      <input type="text" id="fTitle" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;outline:none">
+    </div>
+    <div class="field">
+      <label>내용</label>
+      <textarea id="fContent" placeholder="오늘 하루는 어땠나요?"></textarea>
+      <span class="example-link" onclick="toggleExample()">✨ 작성 예시 보기</span>
+      <div class="example-box" id="exampleBox" style="display:none"></div>
+    </div>
+    <div class="field">
+      <label>사진 · 동영상 첨부 (jpg/png, mov)</label>
+      <div class="file-drop" onclick="document.getElementById('fFiles').click()">
+        + 파일 선택
+        <input type="file" id="fFiles" multiple accept=".jpg,.jpeg,.png,.mov">
+      </div>
+      <div class="preview-grid" id="previewGrid"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-danger" id="deleteBtn" style="display:none" onclick="deleteCurrentEntry()">삭제</button>
+      <button class="btn-primary" onclick="submitEntry()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 상세보기 오버레이 -->
+<div class="overlay" id="detailOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="detailDate"></h2>
+      <button class="sheet-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div id="detailTitle" style="font-weight:700;font-size:1.05rem;margin-bottom:6px"></div>
+    <div class="detail-media" id="detailMedia"></div>
+    <div class="detail-content" id="detailContent"></div>
+    <div class="ai-comment-inline" id="detailAiComment" style="display:none"></div>
+    <div class="sheet-actions">
+      <button class="btn-danger" onclick="deleteEntryFromDetail()">삭제</button>
+      <button class="btn-primary" onclick="editFromDetail()">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI 응원 코멘트 팝업 -->
+<div class="overlay" id="aiCommentBox">
+  <div class="sheet" style="max-width:420px;text-align:center">
+    <div style="font-size:2.4rem;margin-bottom:10px">🤖💛</div>
+    <div id="aiCommentText" style="font-size:.98rem;line-height:1.7;white-space:pre-wrap;margin-bottom:18px"></div>
+    <div class="feature-credit">이 기능은 남자친구이자 저의 주인님이신 정준영님이 꼭 넣어달라고 했던 기능입니다 💛</div>
+    <button class="btn-primary" style="margin-top:18px" onclick="closeAiComment()">확인</button>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){ localStorage.clear(); sessionStorage.clear(); location.href = '/login.html'; }
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401 && !path.startsWith('/diary')){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+let diaryToken = null; // PIN 인증 후 발급되는 별도 토큰 (세션 동안만 유지)
+let moodEmojis = [];
+let exampleTexts = [];
+let selectedMood = null;
+let selectedFiles = []; // {file, url, type}
+let editingEntryId = null;
+let currentDetailId = null;
+let entriesCache = [];
+
+function diaryFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  if(diaryToken) opts.headers['X-Diary-Token'] = diaryToken;
+  return fetch(API + path, opts);
+}
+
+(async function initUser(){
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+  }catch(e){}
+  await loadTemplate();
+  await tryEnter();
+})();
+
+async function loadTemplate(){
+  try{
+    const r = await fetch(API + '/diary/template');
+    const d = await r.json();
+    moodEmojis = d.mood_emojis || [];
+    exampleTexts = d.examples || [];
+    document.getElementById('moodRow').innerHTML = moodEmojis.map(e =>
+      `<button type="button" class="emoji-btn" data-e="${e}" onclick="pickMood('${e}')">${e}</button>`
+    ).join('');
+  }catch(e){}
+}
+
+function pickMood(e){
+  selectedMood = e;
+  document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.toggle('active', b.dataset.e===e));
+}
+
+// ── PIN 게이트 ──
+async function tryEnter(){
+  const saved = sessionStorage.getItem('diaryToken');
+  if(saved) diaryToken = saved;
+
+  const r = await diaryFetch('/diary/entries');
+  if(r.ok){
+    const list = await r.json();
+    showMain(list);
+    return;
+  }
+  diaryToken = null;
+  sessionStorage.removeItem('diaryToken');
+  await showPinGate();
+}
+
+async function showPinGate(){
+  document.getElementById('pinWrap').style.display = 'flex';
+  document.getElementById('diaryMain').style.display = 'none';
+  const r = await authFetch('/diary/pin/status');
+  const d = await r.json();
+  const pinConfirmWrap = document.getElementById('pinConfirmWrap');
+  if(d.pin_set){
+    document.getElementById('pinTitle').textContent = '일기 잠금';
+    document.getElementById('pinDesc').textContent = 'PIN을 입력해주세요';
+    pinConfirmWrap.style.display = 'none';
+    document.getElementById('pinSubmitBtn').onclick = submitVerifyPin;
+  }else{
+    document.getElementById('pinTitle').textContent = 'PIN 설정';
+    document.getElementById('pinDesc').textContent = '처음이시네요! 4자리 또는 6자리 PIN을 설정해주세요';
+    pinConfirmWrap.style.display = 'block';
+    document.getElementById('pinSubmitBtn').onclick = submitSetupPin;
+  }
+}
+
+async function submitSetupPin(){
+  const pin = document.getElementById('pinInput').value.trim();
+  const confirmPin = document.getElementById('pinConfirmInput').value.trim();
+  const msg = document.getElementById('pinMsg');
+  if(pin !== confirmPin){ msg.textContent = 'PIN이 서로 일치하지 않습니다'; return; }
+  const r = await authFetch('/diary/pin/setup', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pin})
+  });
+  const d = await r.json();
+  if(!r.ok){ msg.textContent = d.detail || '설정 실패'; return; }
+  msg.textContent = '';
+  await showPinGate();
+  document.getElementById('pinInput').value = '';
+}
+
+async function submitVerifyPin(){
+  const pin = document.getElementById('pinInput').value.trim();
+  const msg = document.getElementById('pinMsg');
+  const r = await authFetch('/diary/pin/verify', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pin})
+  });
+  const d = await r.json();
+  if(!r.ok){ msg.textContent = d.detail || 'PIN이 올바르지 않습니다'; return; }
+  diaryToken = d.diary_token;
+  sessionStorage.setItem('diaryToken', diaryToken);
+  const r2 = await diaryFetch('/diary/entries');
+  const list = await r2.json();
+  showMain(list);
+}
+
+// ── 목록 ──
+function showMain(list){
+  document.getElementById('pinWrap').style.display = 'none';
+  document.getElementById('diaryMain').style.display = 'block';
+  entriesCache = list;
+  renderList(list);
+}
+
+function renderList(list){
+  const box = document.getElementById('entryList');
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state">아직 작성된 일기가 없어요. "+ 새 일기"로 첫 기록을 남겨보세요.</div>';
+    return;
+  }
+  box.innerHTML = list.map(e => {
+    const img = e.media.find(m=>m.media_type==='image');
+    const thumb = img ? `<img class="entry-thumb" src="${img.thumbnail_url || img.url}">` : `<div class="entry-thumb"></div>`;
+    return `
+      <div class="entry-card" onclick="openDetail(${e.id})">
+        ${thumb}
+        <div class="entry-body">
+          <div class="entry-date">${e.entry_date} ${e.mood_emoji||''}</div>
+          <div class="entry-title">${e.title || '(제목 없음)'}</div>
+          <div class="entry-preview">${(e.content||'').replace(/</g,'&lt;')}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function refreshList(){
+  const r = await diaryFetch('/diary/entries');
+  if(r.ok){ entriesCache = await r.json(); renderList(entriesCache); }
+}
+
+// ── 상세보기 ──
+function openDetail(id){
+  const e = entriesCache.find(x=>x.id===id);
+  if(!e) return;
+  currentDetailId = id;
+  document.getElementById('detailDate').textContent = e.entry_date + ' ' + (e.mood_emoji||'');
+  document.getElementById('detailTitle').textContent = e.title || '';
+  document.getElementById('detailContent').textContent = e.content || '';
+  const aiBox = document.getElementById('detailAiComment');
+  if(e.ai_comment){ aiBox.textContent = '🤖 ' + e.ai_comment; aiBox.style.display = 'block'; }
+  else{ aiBox.style.display = 'none'; }
+  document.getElementById('detailMedia').innerHTML = e.media.map(m =>
+    m.media_type === 'image'
+      ? `<img src="${m.url}">`
+      : `<video src="${m.url}" controls></video>`
+  ).join('');
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+async function deleteEntryFromDetail(){
+  if(!confirm('이 일기를 삭제할까요?')) return;
+  await diaryFetch('/diary/entries/'+currentDetailId, {method:'DELETE'});
+  closeDetail();
+  refreshList();
+}
+
+function editFromDetail(){
+  const e = entriesCache.find(x=>x.id===currentDetailId);
+  closeDetail();
+  openEditor(e);
+}
+
+// ── 작성/수정 ──
+function openEditor(entry){
+  editingEntryId = entry ? entry.id : null;
+  selectedFiles = [];
+  selectedMood = entry ? entry.mood_emoji : null;
+  document.getElementById('editorTitle').textContent = entry ? '일기 수정' : '새 일기';
+  document.getElementById('fDate').value = entry ? entry.entry_date : new Date().toISOString().slice(0,10);
+  document.getElementById('fTitle').value = entry ? (entry.title||'') : '';
+  document.getElementById('fContent').value = entry ? entry.content : '';
+  document.getElementById('exampleBox').style.display = 'none';
+  document.getElementById('deleteBtn').style.display = entry ? 'block' : 'none';
+  document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.toggle('active', b.dataset.e===selectedMood));
+  renderPreviews();
+  document.getElementById('editorOverlay').classList.add('open');
+}
+function closeEditor(){ document.getElementById('editorOverlay').classList.remove('open'); }
+
+function toggleExample(){
+  const box = document.getElementById('exampleBox');
+  if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+  box.innerHTML = exampleTexts.map((t,i) =>
+    `<div>${t.replace(/</g,'&lt;')}<span class="use-btn" onclick="useExample(${i})">이 예시 사용하기</span></div>`
+  ).join('<hr style="border:none;border-top:1px solid var(--line);margin:10px 0">');
+  box.style.display = 'block';
+}
+function useExample(i){
+  document.getElementById('fContent').value = exampleTexts[i];
+  document.getElementById('exampleBox').style.display = 'none';
+}
+
+document.getElementById('fFiles').addEventListener('change', e=>{
+  for(const file of e.target.files){
+    const ext = file.name.split('.').pop().toLowerCase();
+    const type = ext === 'mov' ? 'video' : 'image';
+    selectedFiles.push({file, url: URL.createObjectURL(file), type});
+  }
+  e.target.value = '';
+  renderPreviews();
+});
+
+function renderPreviews(){
+  const grid = document.getElementById('previewGrid');
+  grid.innerHTML = selectedFiles.map((f,i) => `
+    <div class="preview-item">
+      ${f.type === 'image' ? `<img src="${f.url}">` : `<video src="${f.url}"></video><span class="vid-badge">MOV</span>`}
+      <button type="button" class="remove" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+}
+function removeFile(i){ selectedFiles.splice(i,1); renderPreviews(); }
+
+async function submitEntry(){
+  const content = document.getElementById('fContent').value.trim();
+  if(!content){ alert('내용을 입력해주세요'); return; }
+  const fd = new FormData();
+  fd.append('content', content);
+  fd.append('entry_date', document.getElementById('fDate').value);
+  fd.append('title', document.getElementById('fTitle').value.trim());
+  if(selectedMood) fd.append('mood_emoji', selectedMood);
+  selectedFiles.forEach(f => fd.append('files', f.file));
+
+  const path = editingEntryId ? '/diary/entries/'+editingEntryId : '/diary/entries';
+  const method = editingEntryId ? 'PUT' : 'POST';
+  const r = await diaryFetch(path, {method, body: fd});
+  if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail || '저장 실패'); return; }
+  const saved = await r.json();
+  closeEditor();
+  await refreshList();
+  if(saved.ai_comment) showAiComment(saved.ai_comment);
+}
+
+function showAiComment(text){
+  const box = document.getElementById('aiCommentBox');
+  document.getElementById('aiCommentText').textContent = text;
+  box.classList.add('open');
+}
+function closeAiComment(){
+  document.getElementById('aiCommentBox').classList.remove('open');
+}
+
+async function deleteCurrentEntry(){
+  if(!editingEntryId) return;
+  if(!confirm('이 일기를 삭제할까요?')) return;
+  await diaryFetch('/diary/entries/'+editingEntryId, {method:'DELETE'});
+  closeEditor();
+  refreshList();
+}
+</script>
+
+</body>
+</html>
