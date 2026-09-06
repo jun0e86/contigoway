@@ -6,6 +6,7 @@ announcements.py
   GET  /announcements                - 관리자 전용: 전체 공지 이력
   POST /announcements                - 관리자 전용: 새 공지 게시 (기존 활성 공지는 자동 비활성화)
   POST /announcements/{id}/deactivate - 관리자 전용: 공지 숨김
+  POST /announcements/{id}/activate   - 관리자 전용: 숨겼던 공지 다시 게시(복구)
 """
 
 from typing import Optional
@@ -97,3 +98,19 @@ def deactivate(
     ann.is_active = False
     db.commit()
     return {"message": "공지가 숨김 처리되었습니다"}
+
+
+@router.post("/{ann_id}/activate")
+def activate(
+    ann_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """숨겨졌던 예전 공지를 다시 활성화(복구). 기존 활성 공지는 자동 비활성화됨."""
+    ann = db.query(Announcement).filter(Announcement.id == ann_id).first()
+    if not ann:
+        raise HTTPException(404, "공지를 찾을 수 없습니다")
+    db.query(Announcement).filter(Announcement.is_active.is_(True)).update({"is_active": False})
+    ann.is_active = True
+    db.commit()
+    return {"message": "공지가 다시 게시되었습니다"}
