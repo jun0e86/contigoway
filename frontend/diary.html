@@ -32,7 +32,6 @@
 
   main{max-width:680px;margin:0 auto;padding:0 24px 100px}
 
-  /* PIN 게이트 */
   .pin-wrap{display:flex;flex-direction:column;align-items:center;padding:90px 24px}
   .pin-card{background:#fff;border-radius:22px;padding:44px 40px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,.06);text-align:center}
   .pin-icon{font-size:2.2rem;margin-bottom:10px}
@@ -49,7 +48,6 @@
   }
   .pin-msg{font-size:.8rem;color:#D93025;margin-top:10px;min-height:1em}
 
-  /* 목록 헤더 */
   .diary-header{display:flex;justify-content:space-between;align-items:center;padding:40px 0 20px}
   .diary-header h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
   .new-btn{
@@ -68,7 +66,6 @@
   .entry-preview{font-size:.85rem;color:var(--gray);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .empty-state{text-align:center;color:var(--gray-light);padding:60px 0;font-size:.9rem}
 
-  /* 에디터 / 상세 오버레이 */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow-y:auto;padding:40px 16px}
   .overlay.open{display:flex}
   .sheet{background:#fff;border-radius:22px;max-width:560px;width:100%;padding:32px;margin-top:20px}
@@ -109,6 +106,20 @@
   .detail-content{font-size:.95rem;line-height:1.7;white-space:pre-wrap;color:var(--black)}
   .ai-comment-inline{background:#FFF8EA;border:1px solid #F3D9A8;border-radius:12px;padding:14px 16px;font-size:.85rem;line-height:1.6;color:var(--black);margin-top:16px;white-space:pre-wrap}
   .feature-credit{font-size:.72rem;color:var(--gray-light);line-height:1.5;padding-top:14px;border-top:1px solid var(--line)}
+
+  .comments-section{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+  .comments-title{font-size:.85rem;font-weight:700;margin-bottom:10px}
+  .comment-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start}
+  .comment-avatar{width:28px;height:28px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
+  .comment-avatar.admin{background:#FFF3CD}
+  .comment-body{flex:1;background:var(--panel);border-radius:12px;padding:8px 12px}
+  .comment-author{font-size:.78rem;font-weight:700;margin-bottom:2px}
+  .comment-text{font-size:.85rem;line-height:1.5;white-space:pre-wrap}
+  .comment-del{font-size:.7rem;color:var(--gray-light);cursor:pointer;margin-left:6px}
+  .comment-input-row{display:flex;gap:8px;margin-top:10px}
+  .comment-input-row input{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:980px;font-size:.85rem;outline:none}
+  .comment-input-row input:focus{border-color:var(--blue)}
+  .comment-input-row button{padding:9px 16px;background:var(--black);color:#fff;border:none;border-radius:980px;font-size:.8rem;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -126,7 +137,6 @@
   </div>
 </nav>
 
-<!-- PIN 게이트 -->
 <div class="pin-wrap" id="pinWrap">
   <div class="pin-card">
     <div class="pin-icon">🔒</div>
@@ -141,7 +151,6 @@
   </div>
 </div>
 
-<!-- 메인 일기 앱 -->
 <main id="diaryMain" style="display:none">
   <div class="diary-header">
     <h1>우리의 일기</h1>
@@ -150,7 +159,6 @@
   <div id="entryList"></div>
 </main>
 
-<!-- 작성/수정 오버레이 -->
 <div class="overlay" id="editorOverlay">
   <div class="sheet">
     <div class="sheet-header">
@@ -190,7 +198,6 @@
   </div>
 </div>
 
-<!-- 상세보기 오버레이 -->
 <div class="overlay" id="detailOverlay">
   <div class="sheet">
     <div class="sheet-header">
@@ -201,6 +208,14 @@
     <div class="detail-media" id="detailMedia"></div>
     <div class="detail-content" id="detailContent"></div>
     <div class="ai-comment-inline" id="detailAiComment" style="display:none"></div>
+    <div class="comments-section">
+      <h3 class="comments-title">댓글</h3>
+      <div id="commentList"></div>
+      <div class="comment-input-row">
+        <input type="text" id="commentInput" placeholder="댓글을 남겨보세요">
+        <button onclick="submitComment()">등록</button>
+      </div>
+    </div>
     <div class="sheet-actions">
       <button class="btn-danger" onclick="deleteEntryFromDetail()">삭제</button>
       <button class="btn-primary" onclick="editFromDetail()">수정</button>
@@ -208,7 +223,6 @@
   </div>
 </div>
 
-<!-- AI 응원 코멘트 팝업 -->
 <div class="overlay" id="aiCommentBox">
   <div class="sheet" style="max-width:420px;text-align:center">
     <div style="font-size:2.4rem;margin-bottom:10px">🤖💛</div>
@@ -232,11 +246,11 @@ async function authFetch(path, opts={}){
   return r;
 }
 
-let diaryToken = null; // PIN 인증 후 발급되는 별도 토큰 (세션 동안만 유지)
+let diaryToken = null;
 let moodEmojis = [];
 let exampleTexts = [];
 let selectedMood = null;
-let selectedFiles = []; // {file, url, type}
+let selectedFiles = [];
 let editingEntryId = null;
 let currentDetailId = null;
 let entriesCache = [];
@@ -274,7 +288,6 @@ function pickMood(e){
   document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.toggle('active', b.dataset.e===e));
 }
 
-// ── PIN 게이트 ──
 async function tryEnter(){
   const saved = sessionStorage.getItem('diaryToken');
   if(saved) diaryToken = saved;
@@ -339,7 +352,6 @@ async function submitVerifyPin(){
   showMain(list);
 }
 
-// ── 목록 ──
 function showMain(list){
   document.getElementById('pinWrap').style.display = 'none';
   document.getElementById('diaryMain').style.display = 'block';
@@ -373,7 +385,6 @@ async function refreshList(){
   if(r.ok){ entriesCache = await r.json(); renderList(entriesCache); }
 }
 
-// ── 상세보기 ──
 function openDetail(id){
   const e = entriesCache.find(x=>x.id===id);
   if(!e) return;
@@ -389,8 +400,49 @@ function openDetail(id){
       ? `<img src="${m.url}">`
       : `<video src="${m.url}" controls></video>`
   ).join('');
+  renderComments(e.comments || []);
   document.getElementById('detailOverlay').classList.add('open');
 }
+
+function renderComments(comments){
+  const box = document.getElementById('commentList');
+  if(!comments.length){ box.innerHTML = '<div style="font-size:.8rem;color:var(--gray-light)">아직 댓글이 없어요</div>'; return; }
+  box.innerHTML = comments.map(c => `
+    <div class="comment-row">
+      <div class="comment-avatar${c.is_admin ? ' admin' : ''}">${c.author_name.slice(0,1)}</div>
+      <div class="comment-body">
+        <div class="comment-author">${c.author_name}${c.is_admin ? ' 👑' : ''}
+          ${c.is_mine ? `<span class="comment-del" onclick="deleteComment(${c.id})">삭제</span>` : ''}
+        </div>
+        <div class="comment-text">${c.content.replace(/</g,'&lt;')}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function submitComment(){
+  const input = document.getElementById('commentInput');
+  const content = input.value.trim();
+  if(!content) return;
+  const r = await diaryFetch(`/diary/entries/${currentDetailId}/comments`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})
+  });
+  if(!r.ok){ alert('댓글 등록에 실패했습니다'); return; }
+  const updated = await r.json();
+  const idx = entriesCache.findIndex(x=>x.id===currentDetailId);
+  if(idx>-1) entriesCache[idx] = updated;
+  renderComments(updated.comments);
+  input.value = '';
+}
+
+async function deleteComment(commentId){
+  if(!confirm('댓글을 삭제할까요?')) return;
+  const r = await diaryFetch(`/diary/entries/${currentDetailId}/comments/${commentId}`, {method:'DELETE'});
+  if(!r.ok) return;
+  await refreshList();
+  const e = entriesCache.find(x=>x.id===currentDetailId);
+  if(e) renderComments(e.comments);
+}
+
 function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
 
 async function deleteEntryFromDetail(){
@@ -406,7 +458,6 @@ function editFromDetail(){
   openEditor(e);
 }
 
-// ── 작성/수정 ──
 function openEditor(entry){
   editingEntryId = entry ? entry.id : null;
   selectedFiles = [];
