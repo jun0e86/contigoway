@@ -30,6 +30,30 @@
   .nav-links .greet{color:var(--black);font-weight:600}
   .logout-link{color:var(--blue);cursor:pointer}
 
+  /* ── 메가메뉴 ── */
+  .nav-item{position:relative;cursor:pointer;padding:2px 0}
+  .nav-item:hover{color:var(--black)}
+  .mega-overlay{
+    position:fixed;top:48px;left:0;right:0;bottom:0;background:rgba(0,0,0,.2);
+    backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:40;
+  }
+  .mega-overlay.open{opacity:1;pointer-events:auto}
+  .mega-panel{
+    position:fixed;top:48px;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--line);box-shadow:0 20px 40px rgba(0,0,0,.08);
+    transform:translateY(-8px);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .22s ease;
+    z-index:45;
+  }
+  .mega-panel.open{transform:translateY(0);opacity:1;pointer-events:auto}
+  .mega-inner{max-width:980px;margin:0 auto;padding:34px 24px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
+  .mega-col h4{font-size:.78rem;color:var(--gray);font-weight:600;margin-bottom:14px;letter-spacing:.02em}
+  .mega-col a, .mega-col .mega-link{
+    display:block;font-size:.92rem;color:var(--black);text-decoration:none;padding:6px 0;cursor:pointer;
+  }
+  .mega-col a:hover, .mega-col .mega-link:hover{color:var(--blue)}
+  .mega-col .mega-desc{color:var(--gray);font-size:.82rem;margin-top:8px;line-height:1.5}
+  .mega-soon{color:var(--gray-light);font-size:.88rem;padding:6px 0}
+
   main{max-width:980px;margin:0 auto;padding:0 24px}
 
   /* 관리자 승인 패널 */
@@ -89,6 +113,7 @@
     .tile-grid,.other-grid{grid-template-columns:1fr}
     .day-row{grid-template-columns:1fr;gap:8px}
     .nav-links span:not(.greet):not(.active){display:none}
+    .mega-inner{grid-template-columns:1fr 1fr;gap:20px}
   }
 </style>
 </head>
@@ -97,16 +122,24 @@
 <nav>
   <div class="nav-inner">
     <div class="brand">contigoway</div>
-    <div class="nav-links">
-      <span>부동산</span>
-      <span class="active">여행</span>
-      <span>사진모음</span>
-      <span>스케줄</span>
+    <div class="nav-links" id="navLinks">
+      <span class="nav-item" data-menu="realestate">부동산</span>
+      <span class="nav-item active" data-menu="travel">여행</span>
+      <span class="nav-item" data-menu="photos">사진모음</span>
+      <span class="nav-item" data-menu="schedule">스케줄</span>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
     </div>
   </div>
 </nav>
+
+<div class="mega-overlay" id="megaOverlay"></div>
+
+<div class="mega-panel" id="megaPanel">
+  <div class="mega-inner" id="megaInner">
+    <!-- JS가 메뉴별로 채움 -->
+  </div>
+</div>
 
 <main>
   <div id="adminPanel"></div>
@@ -282,6 +315,92 @@ document.getElementById('durationToggle').addEventListener('click', e=>{
   renderPlan(document.querySelector('.city-pill.active').dataset.city, currentDays);
 });
 renderInfo('fukuoka');
+
+// ══════════════════════════════════════════
+// 애플 스타일 메가메뉴
+// ══════════════════════════════════════════
+const MEGA_CONTENT = {
+  travel: `
+    <div class="mega-col">
+      <h4>인기 여행지</h4>
+      <span class="mega-link" data-city="fukuoka">후쿠오카</span>
+      <span class="mega-link" data-city="osaka">오사카</span>
+      <span class="mega-link" data-city="tokyo">도쿄</span>
+    </div>
+    <div class="mega-col">
+      <h4>&nbsp;</h4>
+      <span class="mega-link" data-city="danang">다낭</span>
+      <span class="mega-link" data-city="bangkok">방콕</span>
+    </div>
+    <div class="mega-col" style="grid-column: span 2">
+      <h4>여행 준비</h4>
+      <div class="mega-desc">도시를 고르면 항공권 시세, 현지 날씨, 2박3일/3박4일 인기 일정이 자동으로 채워져요.</div>
+    </div>
+  `,
+  realestate: `
+    <div class="mega-col" style="grid-column: span 4">
+      <h4>부동산</h4>
+      <div class="mega-soon">준비 중이에요. 곧 매물/시세 정보가 이 자리에 채워질 예정입니다.</div>
+    </div>
+  `,
+  photos: `
+    <div class="mega-col" style="grid-column: span 4">
+      <h4>사진모음</h4>
+      <div class="mega-soon">준비 중이에요. 함께 찍은 사진들을 모아볼 수 있는 공간이 될 예정입니다.</div>
+    </div>
+  `,
+  schedule: `
+    <div class="mega-col">
+      <h4>스케줄</h4>
+      <a href="/schedule.html" class="mega-link">내 스케줄</a>
+      <a href="/schedule.html?view=couple" class="mega-link">커플 스케줄 (한눈에 보기)</a>
+    </div>
+    <div class="mega-col" style="grid-column: span 3">
+      <h4>&nbsp;</h4>
+      <div class="mega-desc">내 일정과 상대방 일정을 한 캘린더에서 색깔로 구분해서 볼 수 있고, 원하면 애플/구글 캘린더로도 내보낼 수 있어요.</div>
+    </div>
+  `,
+};
+
+const navLinks = document.getElementById('navLinks');
+const megaPanel = document.getElementById('megaPanel');
+const megaOverlay = document.getElementById('megaOverlay');
+const megaInner = document.getElementById('megaInner');
+let closeTimer = null;
+
+function openMega(menuKey){
+  clearTimeout(closeTimer);
+  if(!MEGA_CONTENT[menuKey]) return;
+  megaInner.innerHTML = MEGA_CONTENT[menuKey];
+  megaPanel.classList.add('open');
+  megaOverlay.classList.add('open');
+}
+
+function scheduleCloseMega(){
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(()=>{
+    megaPanel.classList.remove('open');
+    megaOverlay.classList.remove('open');
+  }, 150);
+}
+
+navLinks.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('mouseenter', ()=> openMega(item.dataset.menu));
+  item.addEventListener('mouseleave', scheduleCloseMega);
+});
+megaPanel.addEventListener('mouseenter', ()=> clearTimeout(closeTimer));
+megaPanel.addEventListener('mouseleave', scheduleCloseMega);
+megaOverlay.addEventListener('mouseenter', scheduleCloseMega);
+
+// 메가메뉴 안에서 여행지 클릭하면 실제 도시 선택 + 그 섹션으로 스크롤
+megaInner.addEventListener('click', e=>{
+  const link = e.target.closest('.mega-link[data-city]');
+  if(!link) return;
+  renderInfo(link.dataset.city);
+  megaPanel.classList.remove('open');
+  megaOverlay.classList.remove('open');
+  document.getElementById('cityTabs').scrollIntoView({behavior:'smooth', block:'center'});
+});
 </script>
 
 </body>
