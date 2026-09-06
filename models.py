@@ -136,3 +136,27 @@ class DiaryComment(Base):
 
     entry = relationship("DiaryEntry", back_populates="comments")
     author = relationship("User")
+
+
+class PageVisit(Base):
+    """방문자 카운터용 - 페이지 로드 1회당 1행. 개인식별정보는 저장하지 않음."""
+
+    __tablename__ = "page_visits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    visited_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class Announcement(Base):
+    """로그인 전/후 화면에 뜨는 공지 팝업. 한 번에 하나만 활성화됨."""
+
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    author = relationship("User")

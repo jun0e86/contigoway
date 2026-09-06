@@ -12,6 +12,8 @@ from admin import router as admin_router
 from todo import router as todo_router
 from schedule import router as schedule_router
 from diary import router as diary_router
+from visits import router as visits_router
+from announcements import router as announcements_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,6 +38,8 @@ app.include_router(admin_router)
 app.include_router(todo_router)
 app.include_router(schedule_router)
 app.include_router(diary_router)
+app.include_router(visits_router)
+app.include_router(announcements_router)
 
 
 @app.on_event("startup")
