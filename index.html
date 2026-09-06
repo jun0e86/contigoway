@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+    --pastel-sky:#EAF2FB;--pastel-sand:#FBF0E4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{
+    width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;
+    padding:0 22px;height:48px;font-size:.82rem;font-weight:500;
+  }
+  .nav-inner .brand{font-weight:600}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links span.active{color:var(--black)}
+  .nav-links a{color:var(--gray);text-decoration:none;font-weight:500}
+  .nav-links a:hover{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  /* ── 메가메뉴 ── */
+  .nav-item{position:relative;cursor:pointer;padding:2px 0}
+  .nav-item:hover{color:var(--black)}
+  .mega-overlay{
+    position:fixed;top:48px;left:0;right:0;bottom:0;background:rgba(0,0,0,.2);
+    backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:40;
+  }
+  .mega-overlay.open{opacity:1;pointer-events:auto}
+  .mega-panel{
+    position:fixed;top:48px;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--line);box-shadow:0 20px 40px rgba(0,0,0,.08);
+    transform:translateY(-8px);opacity:0;pointer-events:none;transition:transform .22s ease,opacity .22s ease;
+    z-index:45;
+  }
+  .mega-panel.open{transform:translateY(0);opacity:1;pointer-events:auto}
+  .mega-inner{max-width:980px;margin:0 auto;padding:34px 24px 40px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px}
+  .mega-col h4{font-size:.78rem;color:var(--gray);font-weight:600;margin-bottom:14px;letter-spacing:.02em}
+  .mega-col a, .mega-col .mega-link{
+    display:block;font-size:.92rem;color:var(--black);text-decoration:none;padding:6px 0;cursor:pointer;
+  }
+  .mega-col a:hover, .mega-col .mega-link:hover{color:var(--blue)}
+  .mega-col .mega-desc{color:var(--gray);font-size:.82rem;margin-top:8px;line-height:1.5}
+  .mega-soon{color:var(--gray-light);font-size:.88rem;padding:6px 0}
+
+  main{max-width:980px;margin:0 auto;padding:0 24px}
+
+  /* 관리자 승인 패널 */
+  .admin-panel{
+    margin-top:28px;background:#FFF8EA;border:1px solid #F3D9A8;border-radius:16px;padding:22px 26px;
+  }
+  .admin-panel h3{font-size:.95rem;font-weight:700;margin-bottom:12px}
+  .pending-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-top:1px solid #F3D9A8;font-size:.85rem;
+  }
+  .pending-row:first-of-type{border-top:none}
+  .pending-actions button{
+    border:none;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;margin-left:6px;
+  }
+  .btn-approve{background:var(--black);color:#fff}
+  .btn-reject{background:#fff;color:var(--gray);border:1px solid var(--line)!important}
+
+  .hero{text-align:center;padding:64px 24px 40px}
+  .hero .kicker{color:var(--gray);font-size:.95rem;font-weight:600;margin-bottom:8px}
+  .hero h1{font-size:clamp(2rem,4.6vw,3rem);font-weight:700;letter-spacing:-.015em;line-height:1.15}
+
+  .city-select{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:28px 0 30px}
+  .city-pill{
+    padding:9px 20px;border-radius:980px;border:1px solid var(--line);background:#fff;
+    font-size:.9rem;font-weight:500;color:var(--gray);cursor:pointer;
+  }
+  .city-pill.active{background:var(--black);color:#fff;border-color:var(--black)}
+
+  .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:80px}
+  .tile{border-radius:22px;padding:40px 34px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .tile.sky{background:var(--pastel-sky)}
+  .tile.sand{background:var(--pastel-sand)}
+  .tile .tile-kicker{font-size:.85rem;color:var(--gray);font-weight:600;margin-bottom:10px}
+  .tile .tile-big{font-size:2.4rem;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+  .tile .tile-sub{color:var(--gray);font-size:.92rem}
+
+  .plan-header{text-align:center;margin-bottom:30px}
+  .plan-header h2{font-size:1.7rem;font-weight:700;letter-spacing:-.01em}
+  .duration-toggle{display:flex;justify-content:center;gap:8px;margin:20px 0 36px}
+  .duration-btn{padding:10px 22px;border-radius:980px;border:1px solid var(--line);background:#fff;font-size:.88rem;font-weight:500;color:var(--gray);cursor:pointer}
+  .duration-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+  .day-list{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .day-row{background:#fff;padding:26px 30px;display:grid;grid-template-columns:100px 1fr;gap:22px}
+  .day-tag{font-size:.9rem;font-weight:600;color:var(--gray)}
+  .day-body h3{font-size:1.02rem;font-weight:600;margin-bottom:10px}
+  .stop-list{display:flex;flex-wrap:wrap;gap:8px}
+  .stop{background:var(--panel);padding:6px 12px;border-radius:8px;font-size:.83rem;color:var(--gray)}
+
+  .other-sectors{padding:64px 0 90px}
+  .other-sectors h2{text-align:center;font-size:1.15rem;font-weight:600;color:var(--gray);margin-bottom:22px}
+  .other-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .other-card{border:1px dashed var(--line);border-radius:18px;padding:28px 14px;text-align:center;color:var(--gray-light);font-size:.88rem;font-weight:500}
+
+  @media(max-width:760px){
+    .tile-grid,.other-grid{grid-template-columns:1fr}
+    .day-row{grid-template-columns:1fr;gap:8px}
+    .nav-links span:not(.greet):not(.active){display:none}
+    .nav-links a{display:inline}
+    .mega-inner{grid-template-columns:1fr 1fr;gap:20px}
+  }
+
+  /* 방문자 카운터 */
+  .visit-counter{
+    position:fixed;top:14px;left:16px;font-size:.72rem;color:var(--gray);z-index:60;
+    background:rgba(255,255,255,.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:980px;
+    display:flex;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);
+  }
+
+  /* 진척도 바 */
+  .progress-wrap{max-width:980px;margin:14px auto 0;padding:0 24px}
+  .progress-bar-bg{cursor:pointer;background:var(--panel);border-radius:980px;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--gray)}
+  .progress-track{flex:1;height:6px;background:var(--line);border-radius:980px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--blue);border-radius:980px}
+  .progress-detail{display:none;background:var(--panel);border-radius:14px;margin-top:8px;padding:14px 18px;font-size:.8rem}
+  .progress-detail.open{display:block}
+  .progress-detail .p-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)}
+  .progress-detail .p-row:last-child{border-bottom:none}
+  .progress-detail .p-done{color:#0C7A3D;font-weight:600}
+  .progress-detail .p-pending{color:var(--gray-light)}
+
+  /* 공지 팝업 */
+  .ann-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .ann-overlay.open{display:flex}
+  .ann-modal{background:#fff;border-radius:20px;padding:30px 28px;max-width:380px;width:100%}
+  .ann-modal h3{font-size:1.05rem;font-weight:700;margin-bottom:12px}
+  .ann-modal .ann-body{font-size:.88rem;line-height:1.6;color:#333;white-space:pre-wrap;margin-bottom:20px;max-height:260px;overflow-y:auto}
+  .ann-footer{display:flex;justify-content:space-between;align-items:center}
+  .ann-footer label{font-size:.78rem;color:var(--gray);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .ann-footer button{background:var(--black);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer}
+
+  /* 관리자 공지 작성 패널 */
+  .ann-admin-panel{margin-top:16px;background:#F0F7FF;border:1px solid #C9E2FF;border-radius:16px;padding:18px 22px}
+  .ann-admin-panel h4{font-size:.88rem;font-weight:700;margin-bottom:10px}
+  .ann-admin-panel input, .ann-admin-panel textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:.85rem;margin-bottom:8px;font-family:inherit;outline:none}
+  .ann-admin-panel textarea{min-height:70px;resize:vertical}
+  .ann-admin-panel .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .ann-admin-panel button{background:var(--black);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.8rem;font-weight:600;cursor:pointer}
+  .ann-admin-panel .current{font-size:.78rem;color:var(--gray)}
+  .ann-admin-panel .hide-btn{background:#fff;color:#D93025;border:1px solid #F3C0C0;padding:6px 12px;border-radius:8px;font-size:.75rem;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="visit-counter" id="visitCounter"></div>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit">contigoway</a>
+    <div class="nav-links" id="navLinks">
+      <span class="nav-item" data-menu="realestate">부동산</span>
+      <span class="nav-item active" data-menu="travel">여행</span>
+      <span class="nav-item" data-menu="photos">사진모음</span>
+      <a href="/diary.html">일기</a>
+      <span class="nav-item" data-menu="schedule">스케줄</span>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg" onclick="document.getElementById('progressDetail').classList.toggle('open')">
+    <span id="progressLabel">기능 구현 진척도</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span id="progressPercent">0%</span>
+  </div>
+  <div class="progress-detail" id="progressDetail"></div>
+</div>
+
+<div class="mega-overlay" id="megaOverlay"></div>
+
+<div class="mega-panel" id="megaPanel">
+  <div class="mega-inner" id="megaInner">
+    <!-- JS가 메뉴별로 채움 -->
+  </div>
+</div>
+
+<div class="ann-overlay" id="annOverlay">
+  <div class="ann-modal">
+    <h3 id="annTitle"></h3>
+    <div class="ann-body" id="annBody"></div>
+    <div class="ann-footer">
+      <label><input type="checkbox" id="annDontShowToday"> 오늘 하루 보지 않기</label>
+      <button onclick="closeAnnouncement()">확인</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div id="adminPanel"></div>
+  <div id="annAdminPanel"></div>
+
+
+  <div class="hero">
+    <div class="kicker">Travel</div>
+    <h1>다음 여행지를 고르면<br>모든 것이 준비돼요</h1>
+  </div>
+
+  <div class="city-select" id="cityTabs">
+    <div class="city-pill active" data-city="fukuoka">후쿠오카</div>
+    <div class="city-pill" data-city="osaka">오사카</div>
+    <div class="city-pill" data-city="tokyo">도쿄</div>
+    <div class="city-pill" data-city="danang">다낭</div>
+    <div class="city-pill" data-city="bangkok">방콕</div>
+  </div>
+
+  <div class="tile-grid">
+    <div class="tile sky">
+      <div class="tile-kicker">왕복 항공권 · 인천 → <span id="cityNameKr">후쿠오카</span></div>
+      <div class="tile-big" id="flightPrice">18.9만원</div>
+      <div class="tile-sub" id="flightMeta">직항 · 약 1시간 15분</div>
+    </div>
+    <div class="tile sand">
+      <div class="tile-kicker">현지 날씨</div>
+      <div class="tile-big"><span id="weatherIcon">☀️</span> <span id="weatherTemp">27°</span></div>
+      <div class="tile-sub" id="weatherDesc">맑음 · 습도 62%</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="plan-header">
+      <h2 id="planTitle">후쿠오카 인기 일정</h2>
+    </div>
+    <div class="duration-toggle" id="durationToggle">
+      <button class="duration-btn active" data-days="2">2박 3일</button>
+      <button class="duration-btn" data-days="3">3박 4일</button>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </div>
+
+  <div class="other-sectors">
+    <h2>다른 섹터는 곧 채워질 예정이에요</h2>
+    <div class="other-grid">
+      <div class="other-card">부동산</div>
+      <div class="other-card">사진모음</div>
+      <div class="other-card">스케줄관리</div>
+      <div class="other-card">기타</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){
+  localStorage.clear();
+  location.href = '/login.html';
+}
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+// ── 로그인 확인 + 인사말 ──
+(async function initUser(){
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+    if(me.role === 'admin'){
+      loadAdminPanel();
+      loadAnnAdminPanel();
+    }
+  }catch(e){}
+})();
+
+// ── 방문자 카운터 ──
+(async function trackVisit(){
+  try{
+    await fetch(API + '/visits/ping', {method:'POST'});
+    const r = await fetch(API + '/visits/stats');
+    const d = await r.json();
+    document.getElementById('visitCounter').innerHTML =
+      `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
+  }catch(e){}
+})();
+
+// ── 기능 구현 진척도 (수동 관리 목록) ──
+const FEATURE_PROGRESS = [
+  {name:'회원가입 / 로그인 (아이디+전화번호)', done:true},
+  {name:'애플 스타일 메가메뉴', done:true},
+  {name:'방문자 수 카운터', done:true},
+  {name:'공지 팝업', done:true},
+  {name:'TODO 리스트 (엑셀 가져오기/내보내기 포함)', done:true, backendOnly:true},
+  {name:'커플 스케줄 캘린더 (애플/구글 캘린더 연동)', done:true, backendOnly:true},
+  {name:'비밀일기 (PIN·사진/동영상·댓글·인사말·날씨)', done:true},
+  {name:'부동산 섹션', done:false},
+  {name:'사진모음 섹션', done:false},
+  {name:'SNS 로그인 (카카오/네이버/애플/페이스북)', done:false},
+];
+(function renderProgress(){
+  const total = FEATURE_PROGRESS.length;
+  const done = FEATURE_PROGRESS.filter(f=>f.done).length;
+  const pct = Math.round(done/total*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPercent').textContent = pct + '%';
+  document.getElementById('progressDetail').innerHTML = FEATURE_PROGRESS.map(f => `
+    <div class="p-row">
+      <span>${f.name}${f.backendOnly ? ' <span style="color:var(--gray-light)">(화면 준비중)</span>' : ''}</span>
+      <span class="${f.done ? 'p-done' : 'p-pending'}">${f.done ? '완료' : '예정'}</span>
+    </div>`).join('');
+})();
+
+// ── 공지 팝업 ──
+(async function loadAnnouncement(){
+  try{
+    const r = await fetch(API + '/announcements/active');
+    const ann = await r.json();
+    if(!ann) return;
+    const dismissKey = 'ann_dismissed_' + ann.id;
+    const dismissedUntil = localStorage.getItem(dismissKey);
+    if(dismissedUntil && new Date(dismissedUntil) > new Date()) return;
+
+    document.getElementById('annTitle').textContent = ann.title;
+    document.getElementById('annBody').textContent = ann.content;
+    document.getElementById('annOverlay').dataset.annId = ann.id;
+    document.getElementById('annOverlay').classList.add('open');
+  }catch(e){}
+})();
+
+function closeAnnouncement(){
+  const overlay = document.getElementById('annOverlay');
+  const annId = overlay.dataset.annId;
+  if(document.getElementById('annDontShowToday').checked && annId){
+    const tomorrow = new Date();
+    tomorrow.setHours(24,0,0,0);
+    localStorage.setItem('ann_dismissed_' + annId, tomorrow.toISOString());
+  }
+  overlay.classList.remove('open');
+}
+
+// ── 관리자 전용: 공지 작성 패널 ──
+async function loadAnnAdminPanel(){
+  const box = document.getElementById('annAdminPanel');
+  let current = null;
+  try{
+    const r = await authFetch('/announcements/active');
+    current = await r.json();
+  }catch(e){}
+
+  box.innerHTML = `
+    <div class="ann-admin-panel">
+      <h4>📢 공지 팝업 관리</h4>
+      ${current ? `
+        <div class="row" style="margin-bottom:10px">
+          <span class="current">현재 게시 중: <b>${current.title}</b></span>
+          <span class="hide-btn" onclick="hideAnnouncement(${current.id})">숨기기</span>
+        </div>` : `<div class="current" style="margin-bottom:10px">현재 게시 중인 공지 없음</div>`}
+      <input type="text" id="annNewTitle" placeholder="제목">
+      <textarea id="annNewContent" placeholder="내용"></textarea>
+      <div class="row"><span></span><button onclick="postAnnouncement()">게시하기</button></div>
+    </div>
+  `;
+}
+
+async function postAnnouncement(){
+  const title = document.getElementById('annNewTitle').value.trim();
+  const content = document.getElementById('annNewContent').value.trim();
+  if(!title || !content){ alert('제목과 내용을 입력해주세요'); return; }
+  const r = await authFetch('/announcements', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title, content})
+  });
+  if(!r.ok){ alert('게시 실패'); return; }
+  await loadAnnAdminPanel();
+  alert('공지가 게시되었습니다. 다음 방문(또는 새로고침) 시 팝업으로 보여요.');
+}
+
+async function hideAnnouncement(id){
+  if(!confirm('이 공지를 숨길까요?')) return;
+  await authFetch('/announcements/'+id+'/deactivate', {method:'POST'});
+  loadAnnAdminPanel();
+}
+
+// ── 관리자 승인 패널 ──
+async function loadAdminPanel(){
+  const box = document.getElementById('adminPanel');
+  try{
+    const r = await authFetch('/admin/users/pending');
+    const list = await r.json();
+    if(!list.length){ box.innerHTML=''; return; }
+    box.innerHTML = `
+      <div class="admin-panel">
+        <h3>가입 승인 대기 (${list.length}명)</h3>
+        ${list.map(u => `
+          <div class="pending-row">
+            <span>${u.full_name} (${u.username}) · ${u.email}</span>
+            <span class="pending-actions">
+              <button class="btn-approve" onclick="approveUser(${u.id})">승인</button>
+              <button class="btn-reject" onclick="rejectUser(${u.id})">거부</button>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }catch(e){}
+}
+
+async function approveUser(id){
+  await authFetch('/admin/users/'+id+'/approve', {method:'POST'});
+  loadAdminPanel();
+}
+async function rejectUser(id){
+  if(!confirm('가입 신청을 거부하시겠습니까?')) return;
+  await authFetch('/admin/users/'+id+'/reject', {method:'POST'});
+  loadAdminPanel();
+}
+
+// ── 여행 위젯 (예시 데이터) ──
+const CITY_DATA = {
+  fukuoka: { kr:'후쿠오카', meta:'직항 · 약 1시간 15분', price:'18.9만원', icon:'☀️', temp:'27°', desc:'맑음 · 습도 62%' },
+  osaka:   { kr:'오사카',   meta:'직항 · 약 1시간 45분', price:'22.4만원', icon:'⛅', temp:'25°', desc:'구름 조금 · 습도 58%' },
+  tokyo:   { kr:'도쿄',     meta:'직항 · 약 2시간 30분', price:'26.7만원', icon:'🌧️', temp:'23°', desc:'약한 비 · 습도 74%' },
+  danang:  { kr:'다낭',     meta:'직항 · 약 5시간',      price:'31.2만원', icon:'☀️', temp:'31°', desc:'맑음 · 습도 70%' },
+  bangkok: { kr:'방콕',     meta:'직항 · 약 6시간',      price:'34.8만원', icon:'⛈️', temp:'32°', desc:'소나기 · 습도 78%' },
+};
+const ITINERARY = {
+  fukuoka: {
+    2:[{day:'DAY 1',title:'도착 · 텐진 · 야타이 포장마차',stops:['후쿠오카공항 도착','호텔 체크인 (텐진)','텐진 지하상가 쇼핑','나카스 야타이 포장마차 저녁']},
+       {day:'DAY 2',title:'다자이후 · 모모치 해변',stops:['다자이후 텐만구','다자이후 참道 디저트 거리','모모치 해변공원','하카타 라멘 스타디움']},
+       {day:'DAY 3',title:'쇼핑 · 귀국',stops:['캐널시티 하카타','JR하카타시티 면세쇼핑','공항 이동 · 출국']}],
+    3:[{day:'DAY 1',title:'도착 · 텐진 · 야타이 포장마차',stops:['후쿠오카공항 도착','호텔 체크인 (텐진)','텐진 지하상가 쇼핑','나카스 야타이 포장마차 저녁']},
+       {day:'DAY 2',title:'다자이후 · 모모치 해변',stops:['다자이후 텐만구','다자이후 참道 디저트 거리','모모치 해변공원','하카타 라멘 스타디움']},
+       {day:'DAY 3',title:'유후인 당일치기 온천여행',stops:['유후인 온천마을','긴린코 호수','유후인 플로럴빌리지','노천탕 온천 체험']},
+       {day:'DAY 4',title:'쇼핑 · 귀국',stops:['캐널시티 하카타','JR하카타시티 면세쇼핑','공항 이동 · 출국']}],
+  },
+  osaka: {
+    2:[{day:'DAY 1',title:'도착 · 도톤보리',stops:['간사이공항 도착','난바 호텔 체크인','도톤보리 글리코상','신사이바시 쇼핑']},
+       {day:'DAY 2',title:'오사카성 · 우메다',stops:['오사카성 공원','구로몬 시장 먹거리','우메다 스카이빌딩','한큐백화점']},
+       {day:'DAY 3',title:'쇼핑 · 귀국',stops:['신사이바시스지 상점가','간사이공항 면세쇼핑','출국']}],
+    3:[{day:'DAY 1',title:'도착 · 도톤보리',stops:['간사이공항 도착','난바 호텔 체크인','도톤보리 글리코상','신사이바시 쇼핑']},
+       {day:'DAY 2',title:'유니버설 스튜디오 재팬',stops:['USJ 종일 이용','해리포터 존','미니언 파크']},
+       {day:'DAY 3',title:'오사카성 · 우메다',stops:['오사카성 공원','구로몬 시장 먹거리','우메다 스카이빌딩']},
+       {day:'DAY 4',title:'쇼핑 · 귀국',stops:['신사이바시스지 상점가','간사이공항 면세쇼핑','출국']}],
+  },
+};
+
+let currentDays = 2;
+function renderInfo(city){
+  const d = CITY_DATA[city];
+  document.querySelectorAll('.city-pill').forEach(t=>t.classList.toggle('active', t.dataset.city===city));
+  document.getElementById('cityNameKr').textContent = d.kr;
+  document.getElementById('flightMeta').textContent = d.meta;
+  document.getElementById('flightPrice').textContent = d.price;
+  document.getElementById('weatherIcon').textContent = d.icon;
+  document.getElementById('weatherTemp').textContent = d.temp;
+  document.getElementById('weatherDesc').textContent = d.desc;
+  document.getElementById('planTitle').textContent = d.kr + ' 인기 일정';
+  renderPlan(city, currentDays);
+}
+function renderPlan(city, days){
+  const plan = (ITINERARY[city] && ITINERARY[city][days]) || ITINERARY.fukuoka[days];
+  document.getElementById('dayList').innerHTML = plan.map(d => `
+    <div class="day-row">
+      <div class="day-tag">${d.day}</div>
+      <div class="day-body"><h3>${d.title}</h3>
+        <div class="stop-list">${d.stops.map(s=>`<span class="stop">${s}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+document.getElementById('cityTabs').addEventListener('click', e=>{
+  const tab = e.target.closest('.city-pill'); if(!tab) return; renderInfo(tab.dataset.city);
+});
+document.getElementById('durationToggle').addEventListener('click', e=>{
+  const btn = e.target.closest('.duration-btn'); if(!btn) return;
+  document.querySelectorAll('.duration-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  currentDays = parseInt(btn.dataset.days,10);
+  renderPlan(document.querySelector('.city-pill.active').dataset.city, currentDays);
+});
+renderInfo('fukuoka');
+
+// ══════════════════════════════════════════
+// 애플 스타일 메가메뉴
+// ══════════════════════════════════════════
+const MEGA_CONTENT = {
+  travel: `
+    <div class="mega-col">
+      <h4>인기 여행지</h4>
+      <span class="mega-link" data-city="fukuoka">후쿠오카</span>
+      <span class="mega-link" data-city="osaka">오사카</span>
+      <span class="mega-link" data-city="tokyo">도쿄</span>
+    </div>
+    <div class="mega-col">
+      <h4>&nbsp;</h4>
+      <span class="mega-link" data-city="danang">다낭</span>
+      <span class="mega-link" data-city="bangkok">방콕</span>
+    </div>
+    <div class="mega-col" style="grid-column: span 2">
+      <h4>여행 준비</h4>
+      <div class="mega-desc">도시를 고르면 항공권 시세, 현지 날씨, 2박3일/3박4일 인기 일정이 자동으로 채워져요.</div>
+    </div>
+  `,
+  realestate: `
+    <div class="mega-col" style="grid-column: span 4">
+      <h4>부동산</h4>
+      <div class="mega-soon">준비 중이에요. 곧 매물/시세 정보가 이 자리에 채워질 예정입니다.</div>
+    </div>
+  `,
+  photos: `
+    <div class="mega-col" style="grid-column: span 4">
+      <h4>사진모음</h4>
+      <div class="mega-soon">준비 중이에요. 함께 찍은 사진들을 모아볼 수 있는 공간이 될 예정입니다.</div>
+    </div>
+  `,
+  schedule: `
+    <div class="mega-col">
+      <h4>스케줄</h4>
+      <a href="/schedule.html" class="mega-link">내 스케줄</a>
+      <a href="/schedule.html?view=couple" class="mega-link">커플 스케줄 (한눈에 보기)</a>
+    </div>
+    <div class="mega-col" style="grid-column: span 3">
+      <h4>&nbsp;</h4>
+      <div class="mega-desc">내 일정과 상대방 일정을 한 캘린더에서 색깔로 구분해서 볼 수 있고, 원하면 애플/구글 캘린더로도 내보낼 수 있어요.</div>
+    </div>
+  `,
+};
+
+const navLinks = document.getElementById('navLinks');
+const megaPanel = document.getElementById('megaPanel');
+const megaOverlay = document.getElementById('megaOverlay');
+const megaInner = document.getElementById('megaInner');
+let closeTimer = null;
+
+function openMega(menuKey){
+  clearTimeout(closeTimer);
+  if(!MEGA_CONTENT[menuKey]) return;
+  megaInner.innerHTML = MEGA_CONTENT[menuKey];
+  megaPanel.classList.add('open');
+  megaOverlay.classList.add('open');
+}
+
+function scheduleCloseMega(){
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(()=>{
+    megaPanel.classList.remove('open');
+    megaOverlay.classList.remove('open');
+  }, 150);
+}
+
+navLinks.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('mouseenter', ()=> openMega(item.dataset.menu));
+  item.addEventListener('mouseleave', scheduleCloseMega);
+});
+megaPanel.addEventListener('mouseenter', ()=> clearTimeout(closeTimer));
+megaPanel.addEventListener('mouseleave', scheduleCloseMega);
+megaOverlay.addEventListener('mouseenter', scheduleCloseMega);
+
+// 메가메뉴 안에서 여행지 클릭하면 실제 도시 선택 + 그 섹션으로 스크롤
+megaInner.addEventListener('click', e=>{
+  const link = e.target.closest('.mega-link[data-city]');
+  if(!link) return;
+  renderInfo(link.dataset.city);
+  megaPanel.classList.remove('open');
+  megaOverlay.classList.remove('open');
+  document.getElementById('cityTabs').scrollIntoView({behavior:'smooth', block:'center'});
+});
+</script>
+
+</body>
+</html>
