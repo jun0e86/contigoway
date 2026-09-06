@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: contigoway-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: contigoway
+      POSTGRES_USER: contigoway
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5434:5432"
+
+  app:
+    build: .
+    container_name: contigoway-app
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - .env.docker
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "127.0.0.1:8001:8000"
+
+volumes:
+  db_data:
+  uploads_data:
