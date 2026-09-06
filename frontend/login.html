@@ -43,10 +43,11 @@
   .screen.active{display:block}
 
   .visit-counter{
-    position:fixed;top:14px;left:16px;font-size:.72rem;color:var(--gray);
-    background:rgba(255,255,255,.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:980px;
-    display:flex;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);
+    position:fixed;top:14px;left:16px;font-size:.82rem;color:var(--black);
+    background:#fff;border:1px solid var(--line);padding:8px 16px;border-radius:980px;
+    display:flex;gap:14px;box-shadow:0 4px 14px rgba(0,0,0,.08);font-weight:600;
   }
+  .visit-counter b{color:var(--blue);font-weight:700}
 
   .ann-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
   .ann-overlay.open{display:flex}
@@ -113,7 +114,7 @@ const API = '/api';
     const r = await fetch(API + '/site/counter');
     const d = await r.json();
     document.getElementById('visitCounter').innerHTML =
-      `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
+      `<span>누적 <b>${d.total.toLocaleString()}</b></span><span>오늘 <b>${d.today.toLocaleString()}</b></span>`;
   }catch(e){}
 })();
 
