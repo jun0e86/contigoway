@@ -27,6 +27,8 @@
   .nav-inner .brand{font-weight:600}
   .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
   .nav-links span.active{color:var(--black)}
+  .nav-links a{color:var(--gray);text-decoration:none;font-weight:500}
+  .nav-links a:hover{color:var(--black)}
   .nav-links .greet{color:var(--black);font-weight:600}
   .logout-link{color:var(--blue);cursor:pointer}
 
@@ -113,11 +115,53 @@
     .tile-grid,.other-grid{grid-template-columns:1fr}
     .day-row{grid-template-columns:1fr;gap:8px}
     .nav-links span:not(.greet):not(.active){display:none}
+    .nav-links a{display:inline}
     .mega-inner{grid-template-columns:1fr 1fr;gap:20px}
   }
+
+  /* 방문자 카운터 */
+  .visit-counter{
+    position:fixed;top:14px;left:16px;font-size:.72rem;color:var(--gray);z-index:60;
+    background:rgba(255,255,255,.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:980px;
+    display:flex;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);
+  }
+
+  /* 진척도 바 */
+  .progress-wrap{max-width:980px;margin:14px auto 0;padding:0 24px}
+  .progress-bar-bg{cursor:pointer;background:var(--panel);border-radius:980px;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--gray)}
+  .progress-track{flex:1;height:6px;background:var(--line);border-radius:980px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--blue);border-radius:980px}
+  .progress-detail{display:none;background:var(--panel);border-radius:14px;margin-top:8px;padding:14px 18px;font-size:.8rem}
+  .progress-detail.open{display:block}
+  .progress-detail .p-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)}
+  .progress-detail .p-row:last-child{border-bottom:none}
+  .progress-detail .p-done{color:#0C7A3D;font-weight:600}
+  .progress-detail .p-pending{color:var(--gray-light)}
+
+  /* 공지 팝업 */
+  .ann-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .ann-overlay.open{display:flex}
+  .ann-modal{background:#fff;border-radius:20px;padding:30px 28px;max-width:380px;width:100%}
+  .ann-modal h3{font-size:1.05rem;font-weight:700;margin-bottom:12px}
+  .ann-modal .ann-body{font-size:.88rem;line-height:1.6;color:#333;white-space:pre-wrap;margin-bottom:20px;max-height:260px;overflow-y:auto}
+  .ann-footer{display:flex;justify-content:space-between;align-items:center}
+  .ann-footer label{font-size:.78rem;color:var(--gray);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .ann-footer button{background:var(--black);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer}
+
+  /* 관리자 공지 작성 패널 */
+  .ann-admin-panel{margin-top:16px;background:#F0F7FF;border:1px solid #C9E2FF;border-radius:16px;padding:18px 22px}
+  .ann-admin-panel h4{font-size:.88rem;font-weight:700;margin-bottom:10px}
+  .ann-admin-panel input, .ann-admin-panel textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:.85rem;margin-bottom:8px;font-family:inherit;outline:none}
+  .ann-admin-panel textarea{min-height:70px;resize:vertical}
+  .ann-admin-panel .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .ann-admin-panel button{background:var(--black);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.8rem;font-weight:600;cursor:pointer}
+  .ann-admin-panel .current{font-size:.78rem;color:var(--gray)}
+  .ann-admin-panel .hide-btn{background:#fff;color:#D93025;border:1px solid #F3C0C0;padding:6px 12px;border-radius:8px;font-size:.75rem;cursor:pointer}
 </style>
 </head>
 <body>
+
+<div class="visit-counter" id="visitCounter"></div>
 
 <nav>
   <div class="nav-inner">
@@ -126,13 +170,23 @@
       <span class="nav-item" data-menu="realestate">부동산</span>
       <span class="nav-item active" data-menu="travel">여행</span>
       <span class="nav-item" data-menu="photos">사진모음</span>
-      <a href="/diary.html" style="color:#6E6E73;text-decoration:none;font-weight:500">일기</a>
+      <a href="/diary.html">일기</a>
+      <a href="/todo.html">TODO</a>
       <span class="nav-item" data-menu="schedule">스케줄</span>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
     </div>
   </div>
 </nav>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg" onclick="document.getElementById('progressDetail').classList.toggle('open')">
+    <span id="progressLabel">기능 구현 진척도</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span id="progressPercent">0%</span>
+  </div>
+  <div class="progress-detail" id="progressDetail"></div>
+</div>
 
 <div class="mega-overlay" id="megaOverlay"></div>
 
@@ -142,8 +196,21 @@
   </div>
 </div>
 
+<div class="ann-overlay" id="annOverlay">
+  <div class="ann-modal">
+    <h3 id="annTitle"></h3>
+    <div class="ann-body" id="annBody"></div>
+    <div class="ann-footer">
+      <label><input type="checkbox" id="annDontShowToday"> 오늘 하루 보지 않기</label>
+      <button onclick="closeAnnouncement()">확인</button>
+    </div>
+  </div>
+</div>
+
 <main>
   <div id="adminPanel"></div>
+  <div id="annAdminPanel"></div>
+
 
   <div class="hero">
     <div class="kicker">Travel</div>
@@ -216,9 +283,119 @@ async function authFetch(path, opts={}){
     const r = await authFetch('/auth/me');
     const me = await r.json();
     document.getElementById('greetName').textContent = me.full_name + '님';
-    if(me.role === 'admin') loadAdminPanel();
+    if(me.role === 'admin'){
+      loadAdminPanel();
+      loadAnnAdminPanel();
+    }
   }catch(e){}
 })();
+
+// ── 방문자 카운터 ──
+(async function trackVisit(){
+  try{
+    await fetch(API + '/visits/ping', {method:'POST'});
+    const r = await fetch(API + '/visits/stats');
+    const d = await r.json();
+    document.getElementById('visitCounter').innerHTML =
+      `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
+  }catch(e){}
+})();
+
+// ── 기능 구현 진척도 (수동 관리 목록) ──
+const FEATURE_PROGRESS = [
+  {name:'회원가입 / 로그인 (아이디+전화번호)', done:true},
+  {name:'애플 스타일 메가메뉴', done:true},
+  {name:'방문자 수 카운터', done:true},
+  {name:'공지 팝업', done:true},
+  {name:'TODO 리스트 (엑셀 가져오기/내보내기 포함)', done:true},
+  {name:'커플 스케줄 캘린더 (애플/구글 캘린더 연동)', done:true},
+  {name:'비밀일기 (PIN·사진/동영상·댓글·인사말·날씨)', done:true},
+  {name:'부동산 섹션', done:false},
+  {name:'사진모음 섹션', done:false},
+  {name:'SNS 로그인 (카카오/네이버/애플/페이스북)', done:false},
+];
+(function renderProgress(){
+  const total = FEATURE_PROGRESS.length;
+  const done = FEATURE_PROGRESS.filter(f=>f.done).length;
+  const pct = Math.round(done/total*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPercent').textContent = pct + '%';
+  document.getElementById('progressDetail').innerHTML = FEATURE_PROGRESS.map(f => `
+    <div class="p-row">
+      <span>${f.name}</span>
+      <span class="${f.done ? 'p-done' : 'p-pending'}">${f.done ? '완료' : '예정'}</span>
+    </div>`).join('');
+})();
+
+// ── 공지 팝업 ──
+(async function loadAnnouncement(){
+  try{
+    const r = await fetch(API + '/announcements/active');
+    const ann = await r.json();
+    if(!ann) return;
+    const dismissKey = 'ann_dismissed_' + ann.id;
+    const dismissedUntil = localStorage.getItem(dismissKey);
+    if(dismissedUntil && new Date(dismissedUntil) > new Date()) return;
+
+    document.getElementById('annTitle').textContent = ann.title;
+    document.getElementById('annBody').textContent = ann.content;
+    document.getElementById('annOverlay').dataset.annId = ann.id;
+    document.getElementById('annOverlay').classList.add('open');
+  }catch(e){}
+})();
+
+function closeAnnouncement(){
+  const overlay = document.getElementById('annOverlay');
+  const annId = overlay.dataset.annId;
+  if(document.getElementById('annDontShowToday').checked && annId){
+    const tomorrow = new Date();
+    tomorrow.setHours(24,0,0,0);
+    localStorage.setItem('ann_dismissed_' + annId, tomorrow.toISOString());
+  }
+  overlay.classList.remove('open');
+}
+
+// ── 관리자 전용: 공지 작성 패널 ──
+async function loadAnnAdminPanel(){
+  const box = document.getElementById('annAdminPanel');
+  let current = null;
+  try{
+    const r = await authFetch('/announcements/active');
+    current = await r.json();
+  }catch(e){}
+
+  box.innerHTML = `
+    <div class="ann-admin-panel">
+      <h4>📢 공지 팝업 관리</h4>
+      ${current ? `
+        <div class="row" style="margin-bottom:10px">
+          <span class="current">현재 게시 중: <b>${current.title}</b></span>
+          <span class="hide-btn" onclick="hideAnnouncement(${current.id})">숨기기</span>
+        </div>` : `<div class="current" style="margin-bottom:10px">현재 게시 중인 공지 없음</div>`}
+      <input type="text" id="annNewTitle" placeholder="제목">
+      <textarea id="annNewContent" placeholder="내용"></textarea>
+      <div class="row"><span></span><button onclick="postAnnouncement()">게시하기</button></div>
+    </div>
+  `;
+}
+
+async function postAnnouncement(){
+  const title = document.getElementById('annNewTitle').value.trim();
+  const content = document.getElementById('annNewContent').value.trim();
+  if(!title || !content){ alert('제목과 내용을 입력해주세요'); return; }
+  const r = await authFetch('/announcements', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title, content})
+  });
+  if(!r.ok){ alert('게시 실패'); return; }
+  await loadAnnAdminPanel();
+  alert('공지가 게시되었습니다. 다음 방문(또는 새로고침) 시 팝업으로 보여요.');
+}
+
+async function hideAnnouncement(id){
+  if(!confirm('이 공지를 숨길까요?')) return;
+  await authFetch('/announcements/'+id+'/deactivate', {method:'POST'});
+  loadAnnAdminPanel();
+}
 
 // ── 관리자 승인 패널 ──
 async function loadAdminPanel(){

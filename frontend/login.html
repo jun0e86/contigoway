@@ -30,6 +30,7 @@
     font-size:.92rem;outline:none;
   }
   .field input:focus{border-color:var(--blue)}
+  .field .hint{font-size:.72rem;color:var(--gray);margin-top:4px}
   .btn{
     width:100%;padding:13px;background:var(--black);color:#fff;border:none;border-radius:10px;
     font-size:.95rem;font-weight:600;cursor:pointer;margin-top:6px;
@@ -40,9 +41,26 @@
   .msg.success{background:#E6F6EC;color:#0C7A3D;display:block}
   .screen{display:none}
   .screen.active{display:block}
+
+  .visit-counter{
+    position:fixed;top:14px;left:16px;font-size:.72rem;color:var(--gray);
+    background:rgba(255,255,255,.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:980px;
+    display:flex;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);
+  }
+
+  .ann-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .ann-overlay.open{display:flex}
+  .ann-modal{background:#fff;border-radius:20px;padding:30px 28px;max-width:380px;width:100%}
+  .ann-modal h3{font-size:1.05rem;font-weight:700;margin-bottom:12px}
+  .ann-modal .ann-body{font-size:.88rem;line-height:1.6;color:#333;white-space:pre-wrap;margin-bottom:20px;max-height:260px;overflow-y:auto}
+  .ann-footer{display:flex;justify-content:space-between;align-items:center}
+  .ann-footer label{font-size:.78rem;color:var(--gray);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .ann-footer button{background:var(--black);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
+
+<div class="visit-counter" id="visitCounter"></div>
 
 <div class="card">
   <div class="logo">contigoway</div>
@@ -54,7 +72,7 @@
   </div>
 
   <div class="screen active" id="screen-login">
-    <div class="field"><label>아이디</label><input type="text" id="login-username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="field"><label>아이디 또는 전화번호</label><input type="text" id="login-username" placeholder="아이디 또는 전화번호" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="field"><label>비밀번호</label><input type="password" id="login-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="msg" id="login-msg"></div>
     <button class="btn" onclick="doLogin()">로그인</button>
@@ -64,14 +82,67 @@
     <div class="field"><label>아이디</label><input type="text" id="reg-username" placeholder="3자 이상"></div>
     <div class="field"><label>이름</label><input type="text" id="reg-fullname"></div>
     <div class="field"><label>이메일</label><input type="email" id="reg-email"></div>
+    <div class="field">
+      <label>전화번호 (선택)</label>
+      <input type="tel" id="reg-phone" placeholder="010-1234-5678">
+      <div class="hint">등록하면 아이디 대신 전화번호로도 로그인할 수 있어요</div>
+    </div>
     <div class="field"><label>비밀번호</label><input type="password" id="reg-password" placeholder="8자 이상"></div>
     <div class="msg" id="reg-msg"></div>
     <button class="btn" onclick="doRegister()">가입 신청</button>
   </div>
 </div>
 
+<div class="ann-overlay" id="annOverlay">
+  <div class="ann-modal">
+    <h3 id="annTitle"></h3>
+    <div class="ann-body" id="annBody"></div>
+    <div class="ann-footer">
+      <label><input type="checkbox" id="annDontShowToday"> 오늘 하루 보지 않기</label>
+      <button onclick="closeAnnouncement()">확인</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '/api';
+
+(async function trackVisit(){
+  try{
+    await fetch(API + '/visits/ping', {method:'POST'});
+    const r = await fetch(API + '/visits/stats');
+    const d = await r.json();
+    document.getElementById('visitCounter').innerHTML =
+      `<span>누적 ${d.total.toLocaleString()}</span><span>오늘 ${d.today.toLocaleString()}</span>`;
+  }catch(e){}
+})();
+
+(async function loadAnnouncement(){
+  try{
+    const r = await fetch(API + '/announcements/active');
+    const ann = await r.json();
+    if(!ann) return;
+    const dismissKey = 'ann_dismissed_' + ann.id;
+    const dismissedUntil = localStorage.getItem(dismissKey);
+    if(dismissedUntil && new Date(dismissedUntil) > new Date()) return;
+
+    document.getElementById('annTitle').textContent = ann.title;
+    document.getElementById('annBody').textContent = ann.content;
+    document.getElementById('annOverlay').dataset.annId = ann.id;
+    document.getElementById('annOverlay').classList.add('open');
+  }catch(e){}
+})();
+
+function closeAnnouncement(){
+  const overlay = document.getElementById('annOverlay');
+  const annId = overlay.dataset.annId;
+  if(document.getElementById('annDontShowToday').checked && annId){
+    const tomorrow = new Date();
+    tomorrow.setHours(24,0,0,0);
+    localStorage.setItem('ann_dismissed_' + annId, tomorrow.toISOString());
+  }
+  overlay.classList.remove('open');
+}
 
 function switchTab(tab){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -89,7 +160,7 @@ function showMsg(id, text, type){
 async function doLogin(){
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
-  if(!username || !password){ showMsg('login-msg','아이디와 비밀번호를 입력해주세요','error'); return; }
+  if(!username || !password){ showMsg('login-msg','아이디(또는 전화번호)와 비밀번호를 입력해주세요','error'); return; }
   try{
     const body = new URLSearchParams();
     body.append('username', username);
@@ -108,12 +179,15 @@ async function doRegister(){
   const username = document.getElementById('reg-username').value.trim();
   const full_name = document.getElementById('reg-fullname').value.trim();
   const email = document.getElementById('reg-email').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
   const password = document.getElementById('reg-password').value;
-  if(!username || !full_name || !email || !password){ showMsg('reg-msg','모든 항목을 입력해주세요','error'); return; }
+  if(!username || !full_name || !email || !password){ showMsg('reg-msg','필수 항목을 모두 입력해주세요','error'); return; }
   try{
+    const payload = {username, full_name, email, password};
+    if(phone) payload.phone = phone;
     const r = await fetch(API + '/auth/register', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username, full_name, email, password})
+      body: JSON.stringify(payload)
     });
     const data = await r.json();
     if(!r.ok){ showMsg('reg-msg', data.detail || '가입 신청 실패', 'error'); return; }
