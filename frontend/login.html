@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · 로그인</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--blue:#0071E3;--bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    background:var(--panel);color:var(--black);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+  }
+  .card{
+    background:#fff;border-radius:22px;padding:44px 40px;width:100%;max-width:380px;
+    box-shadow:0 20px 50px rgba(0,0,0,.06);
+  }
+  .logo{text-align:center;font-weight:700;font-size:1.2rem;margin-bottom:6px}
+  .sub{text-align:center;color:var(--gray);font-size:.85rem;margin-bottom:28px}
+  .tabs{display:flex;background:var(--panel);border-radius:10px;padding:4px;margin-bottom:24px}
+  .tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;color:var(--gray)}
+  .tab.active{background:#fff;color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.78rem;color:var(--gray);margin-bottom:5px;font-weight:500}
+  .field input{
+    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;
+    font-size:.92rem;outline:none;
+  }
+  .field input:focus{border-color:var(--blue)}
+  .btn{
+    width:100%;padding:13px;background:var(--black);color:#fff;border:none;border-radius:10px;
+    font-size:.95rem;font-weight:600;cursor:pointer;margin-top:6px;
+  }
+  .btn:hover{opacity:.88}
+  .msg{font-size:.8rem;padding:9px 12px;border-radius:8px;margin:10px 0;display:none}
+  .msg.error{background:#FDECEC;color:#D93025;display:block}
+  .msg.success{background:#E6F6EC;color:#0C7A3D;display:block}
+  .screen{display:none}
+  .screen.active{display:block}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">contigoway</div>
+  <div class="sub">보경 & 준영을 위한 공간</div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-login" onclick="switchTab('login')">로그인</div>
+    <div class="tab" id="tab-register" onclick="switchTab('register')">회원가입</div>
+  </div>
+
+  <div class="screen active" id="screen-login">
+    <div class="field"><label>아이디</label><input type="text" id="login-username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="login-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="msg" id="login-msg"></div>
+    <button class="btn" onclick="doLogin()">로그인</button>
+  </div>
+
+  <div class="screen" id="screen-register">
+    <div class="field"><label>아이디</label><input type="text" id="reg-username" placeholder="3자 이상"></div>
+    <div class="field"><label>이름</label><input type="text" id="reg-fullname"></div>
+    <div class="field"><label>이메일</label><input type="email" id="reg-email"></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="reg-password" placeholder="8자 이상"></div>
+    <div class="msg" id="reg-msg"></div>
+    <button class="btn" onclick="doRegister()">가입 신청</button>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+
+function switchTab(tab){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function showMsg(id, text, type){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+async function doLogin(){
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if(!username || !password){ showMsg('login-msg','아이디와 비밀번호를 입력해주세요','error'); return; }
+  try{
+    const body = new URLSearchParams();
+    body.append('username', username);
+    body.append('password', password);
+    const r = await fetch(API + '/auth/login', { method:'POST', body });
+    const data = await r.json();
+    if(!r.ok){ showMsg('login-msg', data.detail || '로그인 실패', 'error'); return; }
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('full_name', data.full_name);
+    localStorage.setItem('role', data.role);
+    location.href = '/index.html';
+  }catch(e){ showMsg('login-msg','오류가 발생했습니다','error'); }
+}
+
+async function doRegister(){
+  const username = document.getElementById('reg-username').value.trim();
+  const full_name = document.getElementById('reg-fullname').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  if(!username || !full_name || !email || !password){ showMsg('reg-msg','모든 항목을 입력해주세요','error'); return; }
+  try{
+    const r = await fetch(API + '/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, full_name, email, password})
+    });
+    const data = await r.json();
+    if(!r.ok){ showMsg('reg-msg', data.detail || '가입 신청 실패', 'error'); return; }
+    showMsg('reg-msg', '가입 신청 완료! 관리자 승인 후 로그인할 수 있어요.', 'success');
+  }catch(e){ showMsg('reg-msg','오류가 발생했습니다','error'); }
+}
+</script>
+
+</body>
+</html>

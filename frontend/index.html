@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+    --pastel-sky:#EAF2FB;--pastel-sand:#FBF0E4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{
+    width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;
+    padding:0 22px;height:48px;font-size:.82rem;font-weight:500;
+  }
+  .nav-inner .brand{font-weight:600}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links span.active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:980px;margin:0 auto;padding:0 24px}
+
+  /* 관리자 승인 패널 */
+  .admin-panel{
+    margin-top:28px;background:#FFF8EA;border:1px solid #F3D9A8;border-radius:16px;padding:22px 26px;
+  }
+  .admin-panel h3{font-size:.95rem;font-weight:700;margin-bottom:12px}
+  .pending-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-top:1px solid #F3D9A8;font-size:.85rem;
+  }
+  .pending-row:first-of-type{border-top:none}
+  .pending-actions button{
+    border:none;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;margin-left:6px;
+  }
+  .btn-approve{background:var(--black);color:#fff}
+  .btn-reject{background:#fff;color:var(--gray);border:1px solid var(--line)!important}
+
+  .hero{text-align:center;padding:64px 24px 40px}
+  .hero .kicker{color:var(--gray);font-size:.95rem;font-weight:600;margin-bottom:8px}
+  .hero h1{font-size:clamp(2rem,4.6vw,3rem);font-weight:700;letter-spacing:-.015em;line-height:1.15}
+
+  .city-select{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:28px 0 30px}
+  .city-pill{
+    padding:9px 20px;border-radius:980px;border:1px solid var(--line);background:#fff;
+    font-size:.9rem;font-weight:500;color:var(--gray);cursor:pointer;
+  }
+  .city-pill.active{background:var(--black);color:#fff;border-color:var(--black)}
+
+  .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:80px}
+  .tile{border-radius:22px;padding:40px 34px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .tile.sky{background:var(--pastel-sky)}
+  .tile.sand{background:var(--pastel-sand)}
+  .tile .tile-kicker{font-size:.85rem;color:var(--gray);font-weight:600;margin-bottom:10px}
+  .tile .tile-big{font-size:2.4rem;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+  .tile .tile-sub{color:var(--gray);font-size:.92rem}
+
+  .plan-header{text-align:center;margin-bottom:30px}
+  .plan-header h2{font-size:1.7rem;font-weight:700;letter-spacing:-.01em}
+  .duration-toggle{display:flex;justify-content:center;gap:8px;margin:20px 0 36px}
+  .duration-btn{padding:10px 22px;border-radius:980px;border:1px solid var(--line);background:#fff;font-size:.88rem;font-weight:500;color:var(--gray);cursor:pointer}
+  .duration-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+  .day-list{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .day-row{background:#fff;padding:26px 30px;display:grid;grid-template-columns:100px 1fr;gap:22px}
+  .day-tag{font-size:.9rem;font-weight:600;color:var(--gray)}
+  .day-body h3{font-size:1.02rem;font-weight:600;margin-bottom:10px}
+  .stop-list{display:flex;flex-wrap:wrap;gap:8px}
+  .stop{background:var(--panel);padding:6px 12px;border-radius:8px;font-size:.83rem;color:var(--gray)}
+
+  .other-sectors{padding:64px 0 90px}
+  .other-sectors h2{text-align:center;font-size:1.15rem;font-weight:600;color:var(--gray);margin-bottom:22px}
+  .other-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .other-card{border:1px dashed var(--line);border-radius:18px;padding:28px 14px;text-align:center;color:var(--gray-light);font-size:.88rem;font-weight:500}
+
+  @media(max-width:760px){
+    .tile-grid,.other-grid{grid-template-columns:1fr}
+    .day-row{grid-template-columns:1fr;gap:8px}
+    .nav-links span:not(.greet):not(.active){display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand">contigoway</div>
+    <div class="nav-links">
+      <span>부동산</span>
+      <span class="active">여행</span>
+      <span>사진모음</span>
+      <span>스케줄</span>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div id="adminPanel"></div>
+
+  <div class="hero">
+    <div class="kicker">Travel</div>
+    <h1>다음 여행지를 고르면<br>모든 것이 준비돼요</h1>
+  </div>
+
+  <div class="city-select" id="cityTabs">
+    <div class="city-pill active" data-city="fukuoka">후쿠오카</div>
+    <div class="city-pill" data-city="osaka">오사카</div>
+    <div class="city-pill" data-city="tokyo">도쿄</div>
+    <div class="city-pill" data-city="danang">다낭</div>
+    <div class="city-pill" data-city="bangkok">방콕</div>
+  </div>
+
+  <div class="tile-grid">
+    <div class="tile sky">
+      <div class="tile-kicker">왕복 항공권 · 인천 → <span id="cityNameKr">후쿠오카</span></div>
+      <div class="tile-big" id="flightPrice">18.9만원</div>
+      <div class="tile-sub" id="flightMeta">직항 · 약 1시간 15분</div>
+    </div>
+    <div class="tile sand">
+      <div class="tile-kicker">현지 날씨</div>
+      <div class="tile-big"><span id="weatherIcon">☀️</span> <span id="weatherTemp">27°</span></div>
+      <div class="tile-sub" id="weatherDesc">맑음 · 습도 62%</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="plan-header">
+      <h2 id="planTitle">후쿠오카 인기 일정</h2>
+    </div>
+    <div class="duration-toggle" id="durationToggle">
+      <button class="duration-btn active" data-days="2">2박 3일</button>
+      <button class="duration-btn" data-days="3">3박 4일</button>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </div>
+
+  <div class="other-sectors">
+    <h2>다른 섹터는 곧 채워질 예정이에요</h2>
+    <div class="other-grid">
+      <div class="other-card">부동산</div>
+      <div class="other-card">사진모음</div>
+      <div class="other-card">스케줄관리</div>
+      <div class="other-card">기타</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){
+  localStorage.clear();
+  location.href = '/login.html';
+}
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+// ── 로그인 확인 + 인사말 ──
+(async function initUser(){
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+    if(me.role === 'admin') loadAdminPanel();
+  }catch(e){}
+})();
+
+// ── 관리자 승인 패널 ──
+async function loadAdminPanel(){
+  const box = document.getElementById('adminPanel');
+  try{
+    const r = await authFetch('/admin/users/pending');
+    const list = await r.json();
+    if(!list.length){ box.innerHTML=''; return; }
+    box.innerHTML = `
+      <div class="admin-panel">
+        <h3>가입 승인 대기 (${list.length}명)</h3>
+        ${list.map(u => `
+          <div class="pending-row">
+            <span>${u.full_name} (${u.username}) · ${u.email}</span>
+            <span class="pending-actions">
+              <button class="btn-approve" onclick="approveUser(${u.id})">승인</button>
+              <button class="btn-reject" onclick="rejectUser(${u.id})">거부</button>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }catch(e){}
+}
+
+async function approveUser(id){
+  await authFetch('/admin/users/'+id+'/approve', {method:'POST'});
+  loadAdminPanel();
+}
+async function rejectUser(id){
+  if(!confirm('가입 신청을 거부하시겠습니까?')) return;
+  await authFetch('/admin/users/'+id+'/reject', {method:'POST'});
+  loadAdminPanel();
+}
+
+// ── 여행 위젯 (예시 데이터) ──
+const CITY_DATA = {
+  fukuoka: { kr:'후쿠오카', meta:'직항 · 약 1시간 15분', price:'18.9만원', icon:'☀️', temp:'27°', desc:'맑음 · 습도 62%' },
+  osaka:   { kr:'오사카',   meta:'직항 · 약 1시간 45분', price:'22.4만원', icon:'⛅', temp:'25°', desc:'구름 조금 · 습도 58%' },
+  tokyo:   { kr:'도쿄',     meta:'직항 · 약 2시간 30분', price:'26.7만원', icon:'🌧️', temp:'23°', desc:'약한 비 · 습도 74%' },
+  danang:  { kr:'다낭',     meta:'직항 · 약 5시간',      price:'31.2만원', icon:'☀️', temp:'31°', desc:'맑음 · 습도 70%' },
+  bangkok: { kr:'방콕',     meta:'직항 · 약 6시간',      price:'34.8만원', icon:'⛈️', temp:'32°', desc:'소나기 · 습도 78%' },
+};
+const ITINERARY = {
+  fukuoka: {
+    2:[{day:'DAY 1',title:'도착 · 텐진 · 야타이 포장마차',stops:['후쿠오카공항 도착','호텔 체크인 (텐진)','텐진 지하상가 쇼핑','나카스 야타이 포장마차 저녁']},
+       {day:'DAY 2',title:'다자이후 · 모모치 해변',stops:['다자이후 텐만구','다자이후 참道 디저트 거리','모모치 해변공원','하카타 라멘 스타디움']},
+       {day:'DAY 3',title:'쇼핑 · 귀국',stops:['캐널시티 하카타','JR하카타시티 면세쇼핑','공항 이동 · 출국']}],
+    3:[{day:'DAY 1',title:'도착 · 텐진 · 야타이 포장마차',stops:['후쿠오카공항 도착','호텔 체크인 (텐진)','텐진 지하상가 쇼핑','나카스 야타이 포장마차 저녁']},
+       {day:'DAY 2',title:'다자이후 · 모모치 해변',stops:['다자이후 텐만구','다자이후 참道 디저트 거리','모모치 해변공원','하카타 라멘 스타디움']},
+       {day:'DAY 3',title:'유후인 당일치기 온천여행',stops:['유후인 온천마을','긴린코 호수','유후인 플로럴빌리지','노천탕 온천 체험']},
+       {day:'DAY 4',title:'쇼핑 · 귀국',stops:['캐널시티 하카타','JR하카타시티 면세쇼핑','공항 이동 · 출국']}],
+  },
+  osaka: {
+    2:[{day:'DAY 1',title:'도착 · 도톤보리',stops:['간사이공항 도착','난바 호텔 체크인','도톤보리 글리코상','신사이바시 쇼핑']},
+       {day:'DAY 2',title:'오사카성 · 우메다',stops:['오사카성 공원','구로몬 시장 먹거리','우메다 스카이빌딩','한큐백화점']},
+       {day:'DAY 3',title:'쇼핑 · 귀국',stops:['신사이바시스지 상점가','간사이공항 면세쇼핑','출국']}],
+    3:[{day:'DAY 1',title:'도착 · 도톤보리',stops:['간사이공항 도착','난바 호텔 체크인','도톤보리 글리코상','신사이바시 쇼핑']},
+       {day:'DAY 2',title:'유니버설 스튜디오 재팬',stops:['USJ 종일 이용','해리포터 존','미니언 파크']},
+       {day:'DAY 3',title:'오사카성 · 우메다',stops:['오사카성 공원','구로몬 시장 먹거리','우메다 스카이빌딩']},
+       {day:'DAY 4',title:'쇼핑 · 귀국',stops:['신사이바시스지 상점가','간사이공항 면세쇼핑','출국']}],
+  },
+};
+
+let currentDays = 2;
+function renderInfo(city){
+  const d = CITY_DATA[city];
+  document.querySelectorAll('.city-pill').forEach(t=>t.classList.toggle('active', t.dataset.city===city));
+  document.getElementById('cityNameKr').textContent = d.kr;
+  document.getElementById('flightMeta').textContent = d.meta;
+  document.getElementById('flightPrice').textContent = d.price;
+  document.getElementById('weatherIcon').textContent = d.icon;
+  document.getElementById('weatherTemp').textContent = d.temp;
+  document.getElementById('weatherDesc').textContent = d.desc;
+  document.getElementById('planTitle').textContent = d.kr + ' 인기 일정';
+  renderPlan(city, currentDays);
+}
+function renderPlan(city, days){
+  const plan = (ITINERARY[city] && ITINERARY[city][days]) || ITINERARY.fukuoka[days];
+  document.getElementById('dayList').innerHTML = plan.map(d => `
+    <div class="day-row">
+      <div class="day-tag">${d.day}</div>
+      <div class="day-body"><h3>${d.title}</h3>
+        <div class="stop-list">${d.stops.map(s=>`<span class="stop">${s}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+document.getElementById('cityTabs').addEventListener('click', e=>{
+  const tab = e.target.closest('.city-pill'); if(!tab) return; renderInfo(tab.dataset.city);
+});
+document.getElementById('durationToggle').addEventListener('click', e=>{
+  const btn = e.target.closest('.duration-btn'); if(!btn) return;
+  document.querySelectorAll('.duration-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  currentDays = parseInt(btn.dataset.days,10);
+  renderPlan(document.querySelector('.city-pill.active').dataset.city, currentDays);
+});
+renderInfo('fukuoka');
+</script>
+
+</body>
+</html>
