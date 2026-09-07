@@ -17,6 +17,22 @@
   }
   nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;justify-content:center}
   .nav-inner{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;height:48px;font-size:.82rem;font-weight:500}
+  .breadcrumb-bar{background:var(--panel);border-bottom:1px solid var(--line)}
+  .breadcrumb{max-width:980px;margin:0 auto;padding:8px 22px;display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--gray)}
+  .breadcrumb a{color:var(--gray);text-decoration:none}
+  .breadcrumb a:hover{color:var(--black)}
+  .breadcrumb .crumb-sep{color:var(--line)}
+  .breadcrumb .crumb-current{color:var(--black);font-weight:600}
+  .progress-wrap{max-width:980px;margin:14px auto 0;padding:0 24px}
+  .progress-bar-bg{cursor:pointer;background:var(--panel);border-radius:980px;padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--gray)}
+  .progress-track{flex:1;height:6px;background:var(--line);border-radius:980px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--blue);border-radius:980px}
+  .progress-detail{display:none;background:var(--panel);border-radius:14px;margin-top:8px;padding:14px 18px;font-size:.8rem}
+  .progress-detail.open{display:block}
+  .progress-detail .p-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)}
+  .progress-detail .p-row:last-child{border-bottom:none}
+  .progress-detail .p-done{color:#0C7A3D;font-weight:600}
+  .progress-detail .p-pending{color:var(--gray-light)}
   .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
   .nav-links a{color:var(--gray);text-decoration:none}
   .nav-links .active{color:var(--black)}
@@ -81,6 +97,23 @@
   </div>
 </nav>
 
+<div class="breadcrumb-bar">
+  <div class="breadcrumb">
+    <a href="/index.html">🏠 홈</a>
+    <span class="crumb-sep">›</span>
+    <span class="crumb-current">TODO</span>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg" onclick="document.getElementById('progressDetail').classList.toggle('open')">
+    <span id="progressLabel">기능 구현 진척도</span>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <span id="progressPercent">0%</span>
+  </div>
+  <div class="progress-detail" id="progressDetail"></div>
+</div>
+
 <main>
   <div class="page-header"><h1>오늘의 TODO</h1></div>
 
@@ -114,6 +147,31 @@ const token = localStorage.getItem('token');
 if(!token){ location.href = '/login.html'; }
 
 function logout(){ localStorage.clear(); location.href = '/login.html'; }
+
+const FEATURE_PROGRESS = [
+  {name:'회원가입 / 로그인 (아이디+전화번호)', done:true},
+  {name:'애플 스타일 메가메뉴', done:true},
+  {name:'방문자 수 카운터', done:true},
+  {name:'공지 팝업', done:true},
+  {name:'TODO 리스트 (엑셀 가져오기/내보내기 포함)', done:true},
+  {name:'커플 스케줄 캘린더 (애플/구글 캘린더 연동)', done:true},
+  {name:'비밀일기 (PIN·사진/동영상·댓글·인사말·날씨)', done:true},
+  {name:'부동산 섹션', done:false},
+  {name:'사진모음 섹션', done:false},
+  {name:'SNS 로그인 (카카오/네이버/애플/페이스북)', done:false},
+];
+(function renderProgress(){
+  const total = FEATURE_PROGRESS.length;
+  const done = FEATURE_PROGRESS.filter(f=>f.done).length;
+  const pct = Math.round(done/total*100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPercent').textContent = pct + '%';
+  document.getElementById('progressDetail').innerHTML = FEATURE_PROGRESS.map(f => `
+    <div class="p-row">
+      <span>${f.name}</span>
+      <span class="${f.done ? 'p-done' : 'p-pending'}">${f.done ? '완료' : '예정'}</span>
+    </div>`).join('');
+})();
 
 async function authFetch(path, opts={}){
   opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});

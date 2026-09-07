@@ -25,6 +25,12 @@
     padding:0 22px;height:48px;font-size:.82rem;font-weight:500;
   }
   .nav-inner .brand{font-weight:600}
+  .breadcrumb-bar{background:var(--panel);border-bottom:1px solid var(--line)}
+  .breadcrumb{max-width:980px;margin:0 auto;padding:8px 22px;display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--gray)}
+  .breadcrumb a{color:var(--gray);text-decoration:none}
+  .breadcrumb a:hover{color:var(--black)}
+  .breadcrumb .crumb-sep{color:var(--line)}
+  .breadcrumb .crumb-current{color:var(--black);font-weight:600}
   .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
   .nav-links span.active{color:var(--black)}
   .nav-links a{color:var(--gray);text-decoration:none;font-weight:500}
@@ -187,6 +193,14 @@
     </div>
   </div>
 </nav>
+
+<div class="breadcrumb-bar">
+  <div class="breadcrumb">
+    <a href="/index.html">🏠 홈</a>
+    <span class="crumb-sep">›</span>
+    <span class="crumb-current">여행</span>
+  </div>
+</div>
 
 <div class="progress-wrap">
   <div class="progress-bar-bg" onclick="document.getElementById('progressDetail').classList.toggle('open')">
