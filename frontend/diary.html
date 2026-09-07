@@ -128,7 +128,14 @@
 
 <nav>
   <div class="nav-inner">
-    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit">contigoway</a>
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:8px">
+      <svg width="26" height="26" viewBox="0 0 34 34" aria-hidden="true" style="flex-shrink:0">
+        <rect width="34" height="34" rx="9" fill="#0071E3"/>
+        <path d="M9 24 C9 24 11 14 17 12 C23 10 25 14 25 14" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M22.2 11.2 c0-1.3 1-2 2-2 s2 0.7 2 2 c0 1.6 -2 3.2 -2 3.2 s-2 -1.6 -2 -3.2 z" fill="#fff"/>
+      </svg>
+      <span>contigo<span style="color:#0071E3">way</span></span>
+    </a>
     <div class="nav-links">
       <a href="/index.html">여행</a>
       <a href="/schedule.html">스케줄</a>
@@ -312,6 +319,14 @@ function weatherText(w){
   const temps = (w.temp_max!=null && w.temp_min!=null) ? ` ${w.temp_min}° / ${w.temp_max}°` : '';
   return `${icon} ${label}${temps}`;
 }
+function formatWrittenTime(isoStr){
+  if(!isoStr) return '';
+  const dt = new Date(isoStr);
+  if(isNaN(dt.getTime())) return '';
+  const hh = String(dt.getHours()).padStart(2,'0');
+  const mm = String(dt.getMinutes()).padStart(2,'0');
+  return `${hh}:${mm} 작성`;
+}
 
 async function tryEnter(){
   const saved = sessionStorage.getItem('diaryToken');
@@ -414,7 +429,7 @@ function openDetail(id){
   const e = entriesCache.find(x=>x.id===id);
   if(!e) return;
   currentDetailId = id;
-  document.getElementById('detailDate').textContent = formatDateWithWeekday(e.entry_date) + ' ' + (e.mood_emoji||'') + ' · ' + e.entry_number + '번째 일기' + (e.weather ? ' · ' + weatherText(e.weather) : '');
+  document.getElementById('detailDate').textContent = formatDateWithWeekday(e.entry_date) + ' ' + (e.mood_emoji||'') + ' · ' + e.entry_number + '번째 일기' + (e.weather ? ' · ' + weatherText(e.weather) : '') + (e.created_at ? ' · ' + formatWrittenTime(e.created_at) : '');
   document.getElementById('detailTitle').textContent = e.title || '';
   document.getElementById('detailContent').textContent = e.content || '';
   const aiBox = document.getElementById('detailAiComment');

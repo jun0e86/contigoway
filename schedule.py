@@ -179,17 +179,23 @@ def revoke_feed_token(
 @router.get("/feed/{token}.ics")
 def calendar_feed(token: str, db: Session = Depends(get_db)):
     """애플/구글 캘린더가 주기적으로 이 URL을 폴링해서 최신 일정을 가져감.
-    토큰 자체가 비밀키이므로 별도 로그인 인증은 요구하지 않음 (URL을 아는 사람만 접근 가능)."""
+    토큰 자체가 비밀키이므로 별도 로그인 인증은 요구하지 않음 (URL을 아는 사람만 접근 가능).
+    본인 일정뿐 아니라 상대방(파트너) 일정도 함께 담아서, 구글/애플 캘린더에서도
+    사이트의 '커플 스케줄'과 동일하게 두 사람 일정이 한 캘린더에 보이도록 함.
+    각 일정 제목 앞에 작성자 이름을 [이름] 형태로 붙여 누구 일정인지 구분."""
     user = db.query(User).filter(User.calendar_feed_token == token).first()
     if not user:
         raise HTTPException(404, "유효하지 않은 구독 링크입니다")
-    events = (
-        db.query(ScheduleEvent)
-        .filter(ScheduleEvent.user_id == user.id)
+    rows = (
+        db.query(ScheduleEvent, User)
+        .join(User, ScheduleEvent.user_id == User.id)
+        .filter(User.status == "active")
         .order_by(ScheduleEvent.event_date)
         .all()
     )
-    ics = _build_ics(events, f"contigoway - {user.full_name}")
+    events = [ev for ev, _owner in rows]
+    owner_labels = {ev.id: owner.full_name for ev, owner in rows}
+    ics = _build_ics(events, "contigoway - 커플 스케줄", owner_labels=owner_labels)
     return Response(content=ics, media_type="text/calendar")
 
 
@@ -331,7 +337,7 @@ def google_calendar_link(
     return {"url": url}
 
 
-def _build_ics(events: list[ScheduleEvent], calendar_name: str) -> str:
+def _build_ics(events: list[ScheduleEvent], calendar_name: str, owner_labels: Optional[dict] = None) -> str:
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -351,6 +357,8 @@ def _build_ics(events: list[ScheduleEvent], calendar_name: str) -> str:
             lines.append(f"DTSTART:{start.strftime('%Y%m%dT%H%M%S')}")
             lines.append(f"DTEND:{end.strftime('%Y%m%dT%H%M%S')}")
         summary = ev.title.replace("\n", " ")
+        if owner_labels and ev.id in owner_labels:
+            summary = f"[{owner_labels[ev.id]}] {summary}"
         lines.append(f"SUMMARY:{summary}")
         if ev.description:
             desc = ev.description.replace("\n", "\\n")
