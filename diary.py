@@ -56,9 +56,9 @@ def generate_ai_comment(content: str, full_name: str, entry_count: int) -> Optio
 
 
 # 그 날짜의 실제 날씨 조회 (Open-Meteo Archive API, 무료/키 불필요)
-# 기본 위치: 군포시, 경기도
-WEATHER_LAT = float(os.environ.get("DIARY_WEATHER_LAT", "37.3616"))
-WEATHER_LON = float(os.environ.get("DIARY_WEATHER_LON", "126.9351"))
+# 기본 위치: 서울 (서울시청 기준)
+WEATHER_LAT = float(os.environ.get("DIARY_WEATHER_LAT", "37.5665"))
+WEATHER_LON = float(os.environ.get("DIARY_WEATHER_LON", "126.9780"))
 
 
 def fetch_weather(entry_date: date_cls) -> Optional[dict]:
@@ -242,6 +242,8 @@ def _serialize_entry(entry: DiaryEntry, viewer: Optional[User] = None, db: Optio
         "content": entry.content,
         "mood_emoji": entry.mood_emoji,
         "entry_date": entry.entry_date,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
         "ai_comment": entry.ai_comment,
         "entry_number": entry_number,
         "weather": (
@@ -541,6 +543,27 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(403, "관리자 권한이 필요합니다")
     return current_user
+
+
+@router.post("/admin/backfill-weather")
+def backfill_weather(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    """관리자 전용: 모든 사용자의 일기 날씨를 현재 설정된 좌표(WEATHER_LAT/WEATHER_LON)
+    기준으로 다시 조회해서 갱신. 날씨 기준 위치를 바꾼 뒤(예: 군포 -> 서울) 그 전에
+    이미 저장돼 있던 옛날 일기들의 날씨 값도 새 위치 기준으로 맞추고 싶을 때 한 번 호출."""
+    entries = db.query(DiaryEntry).all()
+    updated = 0
+    for entry in entries:
+        weather = fetch_weather(entry.entry_date)
+        if weather:
+            entry.weather_code = weather["code"]
+            entry.weather_temp_max = weather["temp_max"]
+            entry.weather_temp_min = weather["temp_min"]
+            updated += 1
+    db.commit()
+    return {"message": f"{updated}개 일기의 날씨를 갱신했습니다", "total": len(entries), "updated": updated}
 
 
 @router.get("/admin/users/{user_id}/entries")
