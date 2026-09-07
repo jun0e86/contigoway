@@ -11,10 +11,14 @@ diary.py
   4) 이후 모든 /diary/entries* 요청은 헤더 X-Diary-Token 에 위 토큰을 담아 보내야 함
 
 미디어 업로드:
-  - 이미지: jpg/jpeg/png -> 썸네일(200x200) 자동 생성
+  - 이미지: jpg/jpeg/png/heic/heif/dng -> 썸네일(200x200) 자동 생성
+    · heic/heif(아이폰 기본 사진 포맷)는 브라우저가 직접 표시하지 못하므로 업로드 시 JPEG로 변환해서 저장
+    · dng(RAW)는 원본이 너무 크고 브라우저에서 아예 열리지 않으므로, 파일에 내장된 미리보기(JPEG)를
+      추출해서 저장 (RAW 원본 데이터 자체는 보관하지 않음)
   - 동영상: mov -> 원본만 저장 (썸네일은 프론트에서 <video> 태그로 대체 가능)
 """
 
+import io
 import os
 import uuid
 import requests
@@ -34,7 +38,10 @@ router = APIRouter(prefix="/diary", tags=["비밀일기"])
 
 DIARY_TOKEN_EXPIRE_MINUTES = 30
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
-ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png"}
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".dng"}
+# 브라우저가 직접 렌더링하지 못해 업로드 시 JPEG로 변환해야 하는 포맷
+CONVERT_TO_JPEG_EXT = {".heic", ".heif"}
+RAW_EXT = {".dng"}
 ALLOWED_VIDEO_EXT = {".mov"}
 MAX_FILE_SIZE_MB = int(os.environ.get("DIARY_MAX_FILE_SIZE_MB", "100"))
 
@@ -214,9 +221,19 @@ def get_template():
 def _serialize_entry(entry: DiaryEntry, viewer: Optional[User] = None, db: Optional[Session] = None) -> dict:
     entry_number = None
     if db is not None:
+        # entry_date 기준 오래된 순서로 번호를 매김 (같은 날짜면 먼저 작성한 것이 앞번호).
+        # id 순서가 아니라 entry_date 순서로 매겨야, 목록을 최신순(entry_date desc)으로
+        # 보여줄 때 번호가 4,3,2,1처럼 자연스럽게 내려가고 뒤죽박죽으로 보이지 않는다.
         entry_number = (
             db.query(DiaryEntry)
-            .filter(DiaryEntry.user_id == entry.user_id, DiaryEntry.id <= entry.id)
+            .filter(
+                DiaryEntry.user_id == entry.user_id,
+                (DiaryEntry.entry_date < entry.entry_date)
+                | (
+                    (DiaryEntry.entry_date == entry.entry_date)
+                    & (DiaryEntry.id <= entry.id)
+                ),
+            )
             .count()
         )
     return {
@@ -268,7 +285,8 @@ def list_entries(
     entries = (
         db.query(DiaryEntry)
         .filter(DiaryEntry.user_id == current_user.id)
-        .order_by(DiaryEntry.entry_date.desc())
+        # 같은 entry_date에 여러 개를 쓴 경우까지 항상 같은 순서로 나오도록 id를 2차 정렬 기준으로 추가
+        .order_by(DiaryEntry.entry_date.desc(), DiaryEntry.id.desc())
         .all()
     )
     return [_serialize_entry(e, current_user, db) for e in entries]
@@ -290,6 +308,26 @@ def get_entry(
     return _serialize_entry(entry, current_user, db)
 
 
+def _extract_dng_preview_bytes(abs_path: str) -> bytes:
+    """DNG(RAW) 파일에서 내장 미리보기 이미지를 추출해 JPEG 바이트로 반환.
+    RAW 픽셀을 직접 디코딩하지 않고 파일 안에 이미 들어있는 미리보기(보통 풀 해상도 JPEG)를
+    꺼내오는 방식이라 빠르고 서버 부하가 적음. 미리보기가 없거나 추출 실패 시 예외 발생."""
+    import rawpy
+    from PIL import Image
+
+    with rawpy.imread(abs_path) as raw:
+        thumb = raw.extract_thumb()
+
+    if thumb.format == rawpy.ThumbFormat.JPEG:
+        return thumb.data
+    elif thumb.format == rawpy.ThumbFormat.BITMAP:
+        buf = io.BytesIO()
+        Image.fromarray(thumb.data).convert("RGB").save(buf, "JPEG", quality=92)
+        return buf.getvalue()
+    else:
+        raise ValueError("DNG 파일에서 미리보기를 추출할 수 없습니다")
+
+
 def _save_media_file(upload: UploadFile, user_id: int) -> DiaryMedia:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext in ALLOWED_IMAGE_EXT:
@@ -297,30 +335,60 @@ def _save_media_file(upload: UploadFile, user_id: int) -> DiaryMedia:
     elif ext in ALLOWED_VIDEO_EXT:
         media_type = "video"
     else:
-        raise HTTPException(400, f"지원하지 않는 파일 형식입니다: {ext} (jpg/jpeg/png/mov만 가능)")
+        raise HTTPException(
+            400,
+            f"지원하지 않는 파일 형식입니다: {ext} (jpg/jpeg/png/heic/heif/dng, mov만 가능)",
+        )
 
     user_dir = os.path.join(UPLOAD_DIR, "diary", str(user_id))
     os.makedirs(user_dir, exist_ok=True)
 
-    filename = f"{uuid.uuid4().hex}{ext}"
-    abs_path = os.path.join(user_dir, filename)
+    # 저장용 임시 파일명. heic/heif/dng는 최종적으로 JPEG로 변환해서 저장하므로
+    # 실제 디스크에 남는 확장자는 아래에서 media_type에 따라 결정됨.
+    temp_filename = f"{uuid.uuid4().hex}{ext}"
+    temp_abs_path = os.path.join(user_dir, temp_filename)
 
     size = 0
-    with open(abs_path, "wb") as out:
+    with open(temp_abs_path, "wb") as out:
         while chunk := upload.file.read(1024 * 1024):
             size += len(chunk)
             if size > MAX_FILE_SIZE_MB * 1024 * 1024:
                 out.close()
-                os.remove(abs_path)
+                os.remove(temp_abs_path)
                 raise HTTPException(400, f"파일 용량은 {MAX_FILE_SIZE_MB}MB를 넘을 수 없습니다")
             out.write(chunk)
 
-    rel_path = os.path.join("diary", str(user_id), filename)
+    filename = temp_filename
+    abs_path = temp_abs_path
     thumb_rel_path = None
 
     if media_type == "image":
         try:
             from PIL import Image
+
+            if ext in CONVERT_TO_JPEG_EXT:
+                # heic/heif -> pillow-heif로 디코딩 후 브라우저가 바로 볼 수 있는 JPEG로 저장
+                import pillow_heif
+
+                pillow_heif.register_heif_opener()
+                jpeg_filename = f"{uuid.uuid4().hex}.jpg"
+                jpeg_abs_path = os.path.join(user_dir, jpeg_filename)
+                with Image.open(abs_path) as img:
+                    img.convert("RGB").save(jpeg_abs_path, "JPEG", quality=92)
+                os.remove(abs_path)  # 원본 heic는 용량만 차지하므로 변환 후 삭제
+                filename = jpeg_filename
+                abs_path = jpeg_abs_path
+
+            elif ext in RAW_EXT:
+                # dng(RAW) -> 내장 미리보기를 꺼내서 JPEG로 저장 (RAW 원본은 보관하지 않음)
+                preview_bytes = _extract_dng_preview_bytes(abs_path)
+                os.remove(abs_path)  # 용량이 큰 RAW 원본은 미리보기 추출 후 삭제
+                jpeg_filename = f"{uuid.uuid4().hex}.jpg"
+                jpeg_abs_path = os.path.join(user_dir, jpeg_filename)
+                with open(jpeg_abs_path, "wb") as f:
+                    f.write(preview_bytes)
+                filename = jpeg_filename
+                abs_path = jpeg_abs_path
 
             thumb_filename = f"thumb_{filename}"
             thumb_abs_path = os.path.join(user_dir, thumb_filename)
@@ -328,9 +396,21 @@ def _save_media_file(upload: UploadFile, user_id: int) -> DiaryMedia:
                 img.convert("RGB").thumbnail((200, 200))
                 img.save(thumb_abs_path, "JPEG", quality=85)
             thumb_rel_path = os.path.join("diary", str(user_id), thumb_filename)
+        except HTTPException:
+            raise
         except Exception:
-            # 썸네일 생성 실패해도 원본 업로드 자체는 유지
+            if ext in CONVERT_TO_JPEG_EXT or ext in RAW_EXT:
+                # heic/dng 변환 자체에 실패하면 볼 수 없는 파일만 남으므로 업로드를 통째로 실패시킴
+                if os.path.exists(abs_path):
+                    os.remove(abs_path)
+                raise HTTPException(
+                    400,
+                    f"{ext} 파일을 처리하지 못했습니다. 파일이 손상되었거나 지원하지 않는 형식일 수 있습니다",
+                )
+            # jpg/png 등 원본 형식은 썸네일 생성만 실패해도 업로드 자체는 유지
             thumb_rel_path = None
+
+    rel_path = os.path.join("diary", str(user_id), filename)
 
     return DiaryMedia(
         media_type=media_type,
@@ -473,7 +553,7 @@ def admin_list_entries(
     entries = (
         db.query(DiaryEntry)
         .filter(DiaryEntry.user_id == user_id)
-        .order_by(DiaryEntry.entry_date.desc())
+        .order_by(DiaryEntry.entry_date.desc(), DiaryEntry.id.desc())
         .all()
     )
     return [_serialize_entry(e, admin_user, db) for e in entries]
