@@ -388,6 +388,9 @@ async function authFetch(path, opts={}){
       loadAnnAdminPanel();
       document.getElementById('annAdminToggle').style.display = 'inline';
       document.getElementById('usersNavLink').style.display = 'inline';
+      if(new URLSearchParams(location.search).get('ann') === '1'){
+        document.getElementById('annAdminPanel').style.display = 'block';
+      }
     }
   }catch(e){}
 })();

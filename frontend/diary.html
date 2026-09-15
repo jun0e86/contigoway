@@ -159,6 +159,7 @@
       <span class="active">일기</span>
       <a href="/todo.html">TODO</a>
       <a href="/schedule.html">스케줄</a>
+      <a href="/index.html?ann=1" id="annNavLink" style="display:none">📢 공지관리</a>
       <a href="/users.html" id="usersNavLink" style="display:none">사용자 관리</a>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
@@ -338,7 +339,10 @@ function diaryFetch(path, opts={}){
     const r = await authFetch('/auth/me');
     const me = await r.json();
     document.getElementById('greetName').textContent = me.full_name + '님';
-    if(me.role === 'admin'){ document.getElementById('usersNavLink').style.display = 'inline'; }
+    if(me.role === 'admin'){
+      document.getElementById('usersNavLink').style.display = 'inline';
+      document.getElementById('annNavLink').style.display = 'inline';
+    }
   }catch(e){}
   await loadTemplate();
   await tryEnter();
