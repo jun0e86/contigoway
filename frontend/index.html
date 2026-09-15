@@ -188,6 +188,7 @@
       <a href="/diary.html">일기</a>
       <a href="/todo.html">TODO</a>
       <span class="nav-item" data-menu="schedule">스케줄</span>
+      <a href="/users.html" id="usersNavLink" style="display:none">사용자 관리</a>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
     </div>
@@ -310,6 +311,7 @@ async function authFetch(path, opts={}){
       loadAdminPanel();
       loadAnnAdminPanel();
       document.getElementById('annAdminToggle').style.display = 'inline';
+      document.getElementById('usersNavLink').style.display = 'inline';
     }
   }catch(e){}
 })();

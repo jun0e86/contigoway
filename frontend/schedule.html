@@ -125,6 +125,7 @@
       <a href="/diary.html">일기</a>
       <a href="/todo.html">TODO</a>
       <span class="active">스케줄</span>
+      <a href="/users.html" id="usersNavLink" style="display:none">사용자 관리</a>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
     </div>
@@ -283,6 +284,9 @@ let currentDetail = null;
     const r = await authFetch('/auth/me');
     const me = await r.json();
     document.getElementById('greetName').textContent = me.full_name + '님';
+    if(me.role === 'admin'){
+      document.getElementById('usersNavLink').style.display = 'inline';
+    }
   }catch(e){}
   updateViewToggleUI();
   await loadMonth();
