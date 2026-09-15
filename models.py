@@ -39,6 +39,22 @@ class User(Base):
     calendar_feed_token = Column(String(64), unique=True, nullable=True, index=True)
 
 
+class TodoCategory(Base):
+    """TODO 대분류 (청구작업/오더리뷰/전화예약 등). 사용자가 화면에서 자유롭게 추가/수정."""
+
+    __tablename__ = "todo_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    emoji = Column(String(10), nullable=True)
+    color = Column(String(20), nullable=True)  # 카드/칩 색상 (hex)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    owner = relationship("User")
+
+
 class TodoItem(Base):
     """오늘의 TODO 리스트 항목."""
 
@@ -51,8 +67,55 @@ class TodoItem(Base):
     # 이 TODO가 속한 날짜 (예: 2026-09-06). 날짜별로 조회하기 위함.
     todo_date = Column(Date, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # 완료 처리된 시각 (타임테이블: 언제 등록하고 언제 끝났는지 표시용)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    # 대분류 (청구작업/오더리뷰 등). 미지정 가능.
+    category_id = Column(Integer, ForeignKey("todo_categories.id"), nullable=True, index=True)
+    # 신호등 우선순위: 'red' | 'yellow' | 'green' (미지정 가능)
+    priority = Column(String(10), nullable=True)
+    # 청구작업처럼 "몇 번부터 몇 번까지 중 어디까지 처리했는지" 숫자 범위 진행률
+    progress_start = Column(Integer, nullable=True)
+    progress_end = Column(Integer, nullable=True)
+    progress_current = Column(Integer, nullable=True)
 
     owner = relationship("User")
+    category = relationship("TodoCategory")
+    subitems = relationship(
+        "TodoSubItem", back_populates="todo", cascade="all, delete-orphan",
+        order_by="TodoSubItem.sort_order",
+    )
+    media = relationship(
+        "TodoMedia", back_populates="todo", cascade="all, delete-orphan",
+    )
+
+
+class TodoSubItem(Base):
+    """할 일 하나를 쪼갠 하위 체크리스트 항목 (청구작업 등 큰 일을 단계별로 체크할 때 사용)."""
+
+    __tablename__ = "todo_subitems"
+
+    id = Column(Integer, primary_key=True, index=True)
+    todo_id = Column(Integer, ForeignKey("todo_items.id"), nullable=False, index=True)
+    content = Column(String(300), nullable=False)
+    is_done = Column(Boolean, nullable=False, default=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    todo = relationship("TodoItem", back_populates="subitems")
+
+
+class TodoMedia(Base):
+    """TODO 항목에 첨부된 사진 (jpg/png/heic 등). 아이폰 HEIC는 업로드 시 JPEG로 변환."""
+
+    __tablename__ = "todo_media"
+
+    id = Column(Integer, primary_key=True, index=True)
+    todo_id = Column(Integer, ForeignKey("todo_items.id"), nullable=False, index=True)
+    file_path = Column(String(500), nullable=False)
+    thumbnail_path = Column(String(500), nullable=True)
+    original_filename = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    todo = relationship("TodoItem", back_populates="media")
 
 
 class ScheduleEvent(Base):
