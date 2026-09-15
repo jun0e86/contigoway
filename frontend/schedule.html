@@ -284,9 +284,7 @@ let currentDetail = null;
     const r = await authFetch('/auth/me');
     const me = await r.json();
     document.getElementById('greetName').textContent = me.full_name + '님';
-    if(me.role === 'admin'){
-      document.getElementById('usersNavLink').style.display = 'inline';
-    }
+    if(me.role === 'admin'){ document.getElementById('usersNavLink').style.display = 'inline'; }
   }catch(e){}
   updateViewToggleUI();
   await loadMonth();
