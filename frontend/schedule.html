@@ -180,6 +180,12 @@
     <p>구독 링크를 발급받아 애플 캘린더 또는 구글 캘린더에 "URL로 구독"으로 등록하면, 새 일정을 추가할 때마다 자동으로 동기화돼요.</p>
     <div id="feedTokenBox"></div>
   </div>
+
+  <div class="sub-section">
+    <h3>🔗 구글 캘린더 양방향 연동</h3>
+    <p>연동하면 이 사이트에서 넣은 일정이 구글 캘린더에도 자동으로 올라가고, 구글 캘린더(또는 아이폰 기본 캘린더에 구글 계정을 등록해두면 그쪽)에서 넣은 일정도 몇 분 안에 여기로 자동 반영돼요.</p>
+    <div id="googleSyncBox"></div>
+  </div>
 </main>
 
 <div class="overlay" id="dayOverlay">
@@ -293,6 +299,11 @@ let currentDetail = null;
   updateViewToggleUI();
   await loadMonth();
   loadFeedToken();
+  loadGoogleStatus();
+  if(new URLSearchParams(location.search).get('google_connected') === '1'){
+    alert('구글 캘린더 연동이 완료됐어요!');
+    history.replaceState(null, '', location.pathname);
+  }
 })();
 
 function switchView(v){ viewMode = v; updateViewToggleUI(); loadMonth(); }
@@ -481,6 +492,35 @@ function copyFeedUrl(){
   const input = document.getElementById('feedUrlInput');
   navigator.clipboard.writeText(input.value);
   alert('구독 링크가 복사됐어요. 애플/구글 캘린더의 "URL로 구독"에 붙여넣으세요.');
+}
+
+async function loadGoogleStatus(){
+  try{
+    const r = await authFetch('/google/status');
+    const d = await r.json();
+    renderGoogleBox(d.connected);
+  }catch(e){
+    renderGoogleBox(false);
+  }
+}
+function renderGoogleBox(connected){
+  const box = document.getElementById('googleSyncBox');
+  if(connected){
+    box.innerHTML = `
+      <p style="color:var(--blue);font-weight:600;margin-bottom:8px">✓ 구글 캘린더와 연동되어 있어요</p>
+      <button class="btn-danger" onclick="disconnectGoogle()">연동 해제</button>
+    `;
+  }else{
+    box.innerHTML = `<button class="new-btn" onclick="connectGoogle()">구글 캘린더 연동하기</button>`;
+  }
+}
+function connectGoogle(){
+  location.href = '/api/google/authorize?token=' + encodeURIComponent(token);
+}
+async function disconnectGoogle(){
+  if(!confirm('구글 캘린더 연동을 해제할까요? 앞으로 양쪽 자동 동기화가 멈춰요.')) return;
+  await authFetch('/google/disconnect', {method:'POST'});
+  renderGoogleBox(false);
 }
 </script>
 

@@ -94,7 +94,13 @@ def google_callback(code: str, state: str, db: Session = Depends(get_db)):
     account.access_token_expiry = creds.expiry
     db.commit()
 
-    return RedirectResponse("https://contigoway.com/settings.html?google_connected=1")
+    return RedirectResponse("https://contigoway.com/schedule.html?google_connected=1")
+
+
+@router.get("/status")
+def google_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    account = db.query(GoogleAccount).filter_by(user_id=current_user.id).first()
+    return {"connected": account is not None}
 
 
 @router.post("/disconnect")
