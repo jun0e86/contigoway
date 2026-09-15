@@ -150,7 +150,7 @@ class PageVisit(Base):
 
 
 class Announcement(Base):
-    """로그인 전/후 화면에 뜨는 공지 팝업. start_at~end_at 기간과 is_active를 함께 만족해야 노출됨."""
+    """로그인 전/후 화면에 뜨는 공지 팝업. 한 번에 하나만 활성화됨."""
 
     __tablename__ = "announcements"
 
@@ -158,10 +158,7 @@ class Announcement(Base):
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
-    start_at = Column(Date, nullable=True)
-    end_at = Column(Date, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     author = relationship("User")

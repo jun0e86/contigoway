@@ -14,10 +14,6 @@ from schedule import router as schedule_router
 from diary import router as diary_router
 from visits import router as visits_router
 from announcements import router as announcements_router
-from models_addition import GoogleAccount  # noqa: F401  (create_all이 인식하도록 import)
-from google_auth import router as google_auth_router
-from scheduler import start_scheduler
-from flights import router as flights_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -44,8 +40,6 @@ app.include_router(schedule_router)
 app.include_router(diary_router)
 app.include_router(visits_router)
 app.include_router(announcements_router)
-app.include_router(google_auth_router)
-app.include_router(flights_router)
 
 
 @app.on_event("startup")
@@ -76,11 +70,6 @@ def create_first_admin():
         print(f"[초기 설정] 관리자 계정 '{username}' 생성 완료")
     finally:
         db.close()
-
-
-@app.on_event("startup")
-def start_google_sync_scheduler():
-    start_scheduler()
 
 
 @app.get("/")

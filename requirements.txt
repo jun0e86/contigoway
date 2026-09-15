@@ -12,3 +12,8 @@ pillow-heif==0.18.0
 rawpy==0.27.1
 openpyxl==3.1.5
 requests==2.32.3
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.149.0
+APScheduler==3.10.4
+cryptography==43.0.1

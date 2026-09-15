@@ -7,6 +7,7 @@ admin.py
   POST   /admin/users/{id}/approve - 승인 (status -> active)
   POST   /admin/users/{id}/reject  - 거부 (계정 삭제)
   POST   /admin/users/{id}/disable - 비활성화
+  POST   /admin/users/{id}/enable  - 재활성화 (status -> active)
 """
 
 from datetime import datetime
@@ -60,3 +61,13 @@ def disable(user_id: int, db: Session = Depends(get_db), _=Depends(require_admin
     user.status = "disabled"
     db.commit()
     return {"message": f"{user.full_name}님의 계정을 비활성화했습니다"}
+
+
+@router.post("/users/{user_id}/enable")
+def enable(user_id: int, db: Session = Depends(get_db), _=Depends(require_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "사용자를 찾을 수 없습니다")
+    user.status = "active"
+    db.commit()
+    return {"message": f"{user.full_name}님의 계정을 다시 활성화했습니다"}

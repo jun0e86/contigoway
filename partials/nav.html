@@ -1,0 +1,23 @@
+<!--
+  공통 네비게이션 바.
+  앞으로 메뉴를 추가/삭제/순서변경 할 때는 이 파일 하나만 고치면
+  index.html, diary.html, schedule.html 등 이 컴포넌트를 불러쓰는 모든 페이지에 자동 반영됩니다.
+-->
+<header class="site-header">
+  <div class="logo">
+    <a href="/index.html">
+      <span class="logo-icon">➤</span> contigo<span class="logo-way">way</span>
+    </a>
+  </div>
+  <nav class="main-nav">
+    <a href="/notice.html" data-nav="notice">📣 공지관리</a>
+    <a href="/realestate.html" data-nav="realestate">부동산</a>
+    <a href="/travel.html" data-nav="travel">여행</a>
+    <a href="/photos.html" data-nav="photos">사진모음</a>
+    <a href="/diary.html" data-nav="diary">일기</a>
+    <a href="/todo.html" data-nav="todo">TODO</a>
+    <a href="/schedule.html" data-nav="schedule">스케줄</a>
+    <a href="/admin.html" data-nav="admin">관리자님</a>
+    <a href="#" id="logout-link">로그아웃</a>
+  </nav>
+</header>

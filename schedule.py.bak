@@ -40,8 +40,6 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/schedule", tags=["스케줄"])
 
-from sync_service import push_to_google  # noqa: E402
-
 
 class ScheduleCreate(BaseModel):
     title: str
@@ -239,7 +237,6 @@ def create_event(
     db.add(event)
     db.commit()
     db.refresh(event)
-    push_to_google(db, current_user.id, event, action="create")
     return event
 
 
@@ -259,7 +256,6 @@ def update_event(
     event.event_time = data.event_time
     db.commit()
     db.refresh(event)
-    push_to_google(db, current_user.id, event, action="update")
     return event
 
 
@@ -270,7 +266,6 @@ def delete_event(
     current_user: User = Depends(get_current_user),
 ):
     event = _get_owned_event(event_id, db, current_user)
-    push_to_google(db, current_user.id, event, action="delete")
     db.delete(event)
     db.commit()
     return {"message": "일정이 삭제되었습니다"}
