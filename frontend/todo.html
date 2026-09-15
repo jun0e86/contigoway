@@ -87,11 +87,13 @@
   .add-row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .add-row2 select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.82rem;background:#fff;flex:1;min-width:110px}
   .priority-picker{display:flex;gap:6px}
-  .prio-dot{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;opacity:.35;transition:.15s;display:flex;align-items:center;justify-content:center;font-size:.7rem}
+  .prio-opt{display:flex;align-items:center;gap:5px;border:1.5px solid var(--line);border-radius:980px;padding:5px 11px 5px 7px;font-size:.76rem;font-weight:700;color:var(--gray);cursor:pointer;opacity:.5;transition:.15s;background:#fff}
+  .prio-opt.selected{opacity:1;border-color:var(--black);color:var(--black)}
+  .prio-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0}
   .prio-dot.red{background:var(--red)}
   .prio-dot.yellow{background:var(--yellow)}
   .prio-dot.green{background:var(--green)}
-  .prio-dot.selected{opacity:1;border-color:var(--black);transform:scale(1.12)}
+  .prio-chip{display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:700;color:var(--gray)}
   .add-row2 button{background:var(--black);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:.85rem;font-weight:700;cursor:pointer;margin-left:auto}
 
   /* 할 일 카드 */
@@ -209,15 +211,6 @@
   </div>
 </div>
 
-<div class="progress-wrap">
-  <div class="progress-bar-bg" onclick="document.getElementById('progressDetail').classList.toggle('open')">
-    <span id="progressLabel">기능 구현 진척도</span>
-    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    <span id="progressPercent">0%</span>
-  </div>
-  <div class="progress-detail" id="progressDetail"></div>
-</div>
-
 <main>
   <div class="page-header">
     <h1>✅ 오늘의 TODO</h1>
@@ -258,9 +251,9 @@
     <div class="add-row2">
       <select id="newCategorySelect"><option value="">카테고리 없음</option></select>
       <div class="priority-picker" id="newPriorityPicker">
-        <span class="prio-dot red" data-p="red" onclick="pickNewPriority('red')" title="급함"></span>
-        <span class="prio-dot yellow" data-p="yellow" onclick="pickNewPriority('yellow')" title="보통"></span>
-        <span class="prio-dot green" data-p="green" onclick="pickNewPriority('green')" title="여유"></span>
+        <span class="prio-opt" data-p="red" onclick="pickNewPriority('red')"><span class="prio-dot red"></span>급함</span>
+        <span class="prio-opt" data-p="yellow" onclick="pickNewPriority('yellow')"><span class="prio-dot yellow"></span>보통</span>
+        <span class="prio-opt" data-p="green" onclick="pickNewPriority('green')"><span class="prio-dot green"></span>여유</span>
       </div>
       <button onclick="addTodo()">추가 ➕</button>
     </div>
@@ -299,31 +292,6 @@ const token = localStorage.getItem('token');
 if(!token){ location.href = '/login.html'; }
 
 function logout(){ localStorage.clear(); location.href = '/login.html'; }
-
-const FEATURE_PROGRESS = [
-  {name:'회원가입 / 로그인 (아이디+전화번호)', done:true},
-  {name:'애플 스타일 메가메뉴', done:true},
-  {name:'방문자 수 카운터', done:true},
-  {name:'공지 팝업', done:true},
-  {name:'TODO 리스트 (카테고리·우선순위·사진·체크리스트·엑셀 연동)', done:true},
-  {name:'커플 스케줄 캘린더 (애플/구글 캘린더 연동)', done:true},
-  {name:'비밀일기 (PIN·사진/동영상·댓글·인사말·날씨)', done:true},
-  {name:'부동산 섹션', done:false},
-  {name:'사진모음 섹션', done:false},
-  {name:'SNS 로그인 (카카오/네이버/애플/페이스북)', done:false},
-];
-(function renderProgress(){
-  const total = FEATURE_PROGRESS.length;
-  const done = FEATURE_PROGRESS.filter(f=>f.done).length;
-  const pct = Math.round(done/total*100);
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressPercent').textContent = pct + '%';
-  document.getElementById('progressDetail').innerHTML = FEATURE_PROGRESS.map(f => `
-    <div class="p-row">
-      <span>${f.name}</span>
-      <span class="${f.done ? 'p-done' : 'p-pending'}">${f.done ? '완료' : '예정'}</span>
-    </div>`).join('');
-})();
 
 async function authFetch(path, opts={}){
   opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
@@ -482,7 +450,7 @@ async function createCategory(){
 // ── 우선순위 선택 (신호등) ──
 function pickNewPriority(p){
   newPriority = (newPriority === p) ? null : p;
-  document.querySelectorAll('#newPriorityPicker .prio-dot').forEach(el=>{
+  document.querySelectorAll('#newPriorityPicker .prio-opt').forEach(el=>{
     el.classList.toggle('selected', el.dataset.p === newPriority);
   });
 }
@@ -527,6 +495,9 @@ function renderTodos(){
 
 function renderTodoCard(t){
   const isOpen = expandedIds.has(t.id);
+  const prioLabels = {red:'급함', yellow:'보통', green:'여유'};
+  const priorityChip = t.priority
+    ? `<span class="prio-chip"><span class="prio-dot ${t.priority}"></span>${prioLabels[t.priority]}</span>` : '';
   const catChip = t.category_name
     ? `<span class="cat-chip" style="background:${t.category_color||'#EAEAEA'}">${t.category_emoji||'📌'} ${t.category_name}</span>` : '';
   const createdChip = `<span class="time-chip">🕐 ${fmtTime(t.created_at)} 등록</span>`;
@@ -567,7 +538,7 @@ function renderTodoCard(t){
       <div class="todo-checkbox${t.is_done?' done':''}" onclick="event.stopPropagation(); toggleTodo(${t.id})">${t.is_done?'✓':''}</div>
       <div class="todo-body">
         <div class="todo-content${t.is_done?' done':''}">${escapeHtml(t.content)}</div>
-        <div class="todo-meta">${catChip}${createdChip}${doneChip}${photoBadge}${subBadge}</div>
+        <div class="todo-meta">${priorityChip}${catChip}${createdChip}${doneChip}${photoBadge}${subBadge}</div>
         ${progressHtml}
       </div>
       <div class="expand-caret${isOpen?' open':''}">▶</div>
@@ -580,9 +551,9 @@ function renderTodoCard(t){
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="edit-cat-${t.id}" style="border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:.8rem">${catOptions}</select>
           <div class="priority-picker">
-            <span class="prio-dot red${t.priority==='red'?' selected':''}" onclick="setEditPriority(${t.id}, 'red', this)"></span>
-            <span class="prio-dot yellow${t.priority==='yellow'?' selected':''}" onclick="setEditPriority(${t.id}, 'yellow', this)"></span>
-            <span class="prio-dot green${t.priority==='green'?' selected':''}" onclick="setEditPriority(${t.id}, 'green', this)"></span>
+            <span class="prio-opt${t.priority==='red'?' selected':''}" data-p="red" onclick="setEditPriority(${t.id}, 'red', this)"><span class="prio-dot red"></span>급함</span>
+            <span class="prio-opt${t.priority==='yellow'?' selected':''}" data-p="yellow" onclick="setEditPriority(${t.id}, 'yellow', this)"><span class="prio-dot yellow"></span>보통</span>
+            <span class="prio-opt${t.priority==='green'?' selected':''}" data-p="green" onclick="setEditPriority(${t.id}, 'green', this)"><span class="prio-dot green"></span>여유</span>
           </div>
           <span style="font-size:.78rem;color:var(--blue);font-weight:700;cursor:pointer;margin-left:auto" onclick="saveTodoEdit(${t.id})">저장</span>
         </div>
@@ -642,7 +613,7 @@ async function addTodo(){
   if(!r.ok){ alert('추가 실패'); return; }
   input.value = '';
   newPriority = null;
-  document.querySelectorAll('#newPriorityPicker .prio-dot').forEach(el=>el.classList.remove('selected'));
+  document.querySelectorAll('#newPriorityPicker .prio-opt').forEach(el=>el.classList.remove('selected'));
   loadTodos();
 }
 
@@ -661,7 +632,7 @@ async function deleteTodo(id){
 function setEditPriority(id, p, el){
   const card = document.querySelector(`.todo-card[data-id="${id}"]`);
   const isSelected = el.classList.contains('selected');
-  card.querySelectorAll('.todo-detail .priority-picker .prio-dot').forEach(x=>x.classList.remove('selected'));
+  card.querySelectorAll('.todo-detail .priority-picker .prio-opt').forEach(x=>x.classList.remove('selected'));
   if(!isSelected) el.classList.add('selected');
   card.dataset.editPriority = isSelected ? '' : p;
 }
@@ -671,8 +642,8 @@ async function saveTodoEdit(id){
   if(!content){ alert('내용을 입력해주세요'); return; }
   const category_id = document.getElementById(`edit-cat-${id}`).value || null;
   const card = document.querySelector(`.todo-card[data-id="${id}"]`);
-  const selectedDot = card.querySelector('.todo-detail .priority-picker .prio-dot.selected');
-  const priority = selectedDot ? selectedDot.dataset.p || (selectedDot.classList.contains('red')?'red':selectedDot.classList.contains('yellow')?'yellow':'green') : null;
+  const selectedOpt = card.querySelector('.todo-detail .priority-picker .prio-opt.selected');
+  const priority = selectedOpt ? selectedOpt.dataset.p : null;
   const t = currentList.find(x=>x.id===id) || {};
   await authFetch(`/todo/${id}`, {
     method:'PUT', headers:{'Content-Type':'application/json'},
