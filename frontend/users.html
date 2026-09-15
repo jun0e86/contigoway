@@ -58,6 +58,8 @@
   .btn-reject{background:#fff;color:#B3261E;border:1px solid #F3C0C0!important}
   .btn-disable{background:#fff;color:var(--gray);border:1px solid var(--line)!important}
   .btn-enable{background:#fff;color:var(--blue);border:1px solid #BFDBFF!important}
+  .btn-promote{background:#fff;color:#946200;border:1px solid #F3D9A8!important}
+  .btn-demote{background:#fff;color:var(--gray);border:1px solid var(--line)!important}
 
   .empty{color:var(--gray-light);font-size:.85rem;text-align:center;padding:40px 0}
   .denied{text-align:center;padding:80px 20px;color:var(--gray)}
@@ -124,6 +126,7 @@ async function authFetch(path, opts={}){
 
 let allUsers = [];
 let currentTab = 'pending';
+let myId = null;
 
 function fmtDate(iso){
   if(!iso) return '';
@@ -147,7 +150,12 @@ function actionsFor(u){
       <button class="btn-reject" onclick="doAction(${u.id},'reject')">거부</button>`;
   }
   if(u.status === 'active'){
-    return u.role === 'admin' ? '' : `<button class="btn-disable" onclick="doAction(${u.id},'disable')">비활성화</button>`;
+    if(u.role === 'admin'){
+      return u.id === myId ? '' : `<button class="btn-demote" onclick="doAction(${u.id},'demote')">관리자 해제</button>`;
+    }
+    return `
+      <button class="btn-promote" onclick="doAction(${u.id},'promote')">관리자로 지정</button>
+      <button class="btn-disable" onclick="doAction(${u.id},'disable')">비활성화</button>`;
   }
   if(u.status === 'disabled'){
     return `<button class="btn-enable" onclick="doAction(${u.id},'enable')">다시 활성화</button>`;
@@ -196,10 +204,15 @@ async function loadUsers(){
 }
 
 async function doAction(id, action){
-  const labels = {approve:'승인', reject:'거부', disable:'비활성화', enable:'다시 활성화'};
-  if((action === 'reject' || action === 'disable') && !confirm(`정말 ${labels[action]}하시겠어요?`)) return;
+  const labels = {approve:'승인', reject:'거부', disable:'비활성화', enable:'다시 활성화', promote:'관리자로 지정', demote:'관리자 해제'};
+  if(['reject','disable','promote','demote'].includes(action) && !confirm(`정말 ${labels[action]}하시겠어요?`)) return;
   const r = await authFetch(`/admin/users/${id}/${action}`, {method:'POST'});
-  if(!r.ok){ alert('처리에 실패했어요'); return; }
+  if(!r.ok){
+    let msg = '처리에 실패했어요';
+    try{ const body = await r.json(); if(body.detail) msg = body.detail; }catch(e){}
+    alert(msg);
+    return;
+  }
   await loadUsers();
 }
 
@@ -207,6 +220,7 @@ async function doAction(id, action){
   try{
     const r = await authFetch('/auth/me');
     const me = await r.json();
+    myId = me.id;
     document.getElementById('greetName').textContent = me.full_name + '님';
     if(me.role !== 'admin'){
       document.getElementById('mainArea').innerHTML = '<div class="denied">관리자만 볼 수 있는 페이지예요.</div>';
