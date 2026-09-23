@@ -32,7 +32,7 @@ log = logging.getLogger("legal_review")
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
-def build_router(auth_dependency, prefix: str = "/legal-review") -> APIRouter:
+def build_router(auth_dependency, prefix: str = "/api/legal-review") -> APIRouter:
     if auth_dependency is None:
         raise ValueError("auth_dependency(로그인 검증 의존성)가 필요합니다.")
     router = APIRouter(prefix=prefix, tags=["legal-review"], dependencies=[Depends(auth_dependency)])
@@ -133,7 +133,7 @@ class _RateLimiter:
         return True
 
 
-def build_search_router(prefix: str = "/legal-review", auth_dependency=None) -> APIRouter:
+def build_search_router(prefix: str = "/api/legal-review", auth_dependency=None) -> APIRouter:
     """'상황 입력 → 판례/법령해석례/관련 조문' 검색 라우터. AI를 쓰지 않는다.
 
     문서 검토(build_router)와 달리 회사 Bedrock 접근이 필요 없어 공개 웹사이트에 그대로
