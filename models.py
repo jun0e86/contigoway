@@ -250,6 +250,7 @@ class Photo(Base):
     weather_temp_max = Column(Integer, nullable=True)
     weather_temp_min = Column(Integer, nullable=True)
     occasion = Column(String(500), nullable=True)                     # 업로드 시 직접 입력한 태그/메모
+    category = Column(String(50), nullable=True)                       # 큰 분류 (일상/여름휴가/해외여행 등)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     uploader = relationship("User")

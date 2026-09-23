@@ -32,6 +32,14 @@
   .page-header h1{font-size:1.5rem;font-weight:700}
   .new-btn{background:var(--black);color:#fff;border:none;border-radius:980px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer}
 
+  .search-row{display:flex;gap:8px;margin-bottom:12px}
+  .search-row input{flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:12px;font-size:.88rem;outline:none;font-family:inherit}
+  .search-row input:focus{border-color:var(--blue)}
+  .search-row button{background:var(--panel);border:none;border-radius:12px;padding:0 16px;font-size:.85rem;font-weight:600;cursor:pointer;color:var(--black)}
+  .cat-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .cat-chip{background:var(--panel);border:none;border-radius:980px;padding:6px 14px;font-size:.78rem;font-weight:600;color:var(--gray);cursor:pointer}
+  .cat-chip.active{background:var(--black);color:#fff}
+
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
   .thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--panel);cursor:pointer}
   .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
@@ -82,6 +90,13 @@
   .comment-form input{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:980px;font-size:.85rem;outline:none;font-family:inherit}
   .comment-form input:focus{border-color:var(--blue)}
   .comment-form button{background:var(--black);color:#fff;border:none;border-radius:980px;padding:0 16px;font-size:.82rem;font-weight:600;cursor:pointer}
+  .emoji-btn{background:var(--panel);border:none;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;flex-shrink:0}
+  .emoji-picker{position:relative}
+  .emoji-popup{display:none;position:absolute;bottom:44px;right:0;background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;width:220px;grid-template-columns:repeat(7,1fr);gap:2px;z-index:10}
+  .emoji-popup.open{display:grid}
+  .emoji-popup button{background:none;border:none;font-size:1.15rem;padding:5px;cursor:pointer;border-radius:6px}
+  .emoji-popup button:hover{background:var(--panel)}
 </style>
 </head>
 <body>
@@ -116,6 +131,13 @@
     <button class="new-btn" onclick="openUploader()">+ 업로드</button>
   </div>
 
+  <div class="search-row">
+    <input type="text" id="searchInput" placeholder="장소나 태그로 검색 (예: 노원, 일본)"
+           onkeydown="if(event.key==='Enter') runSearch()">
+    <button onclick="runSearch()">검색</button>
+  </div>
+  <div class="cat-row" id="catRow"></div>
+
   <div id="grid" class="grid"></div>
   <div id="emptyMsg" class="empty-msg" style="display:none">아직 업로드된 사진이 없어요.</div>
 </main>
@@ -132,6 +154,11 @@
       <input type="file" id="fFiles" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.mov" onchange="onFilesPicked(event)">
     </div>
     <div class="preview-grid" id="previewGrid"></div>
+    <div class="field">
+      <label>카테고리 (예: 일상, 여름휴가, 해외여행 — 직접 입력도 가능)</label>
+      <input type="text" id="fCategory" list="categoryOptions" maxlength="50" placeholder="예: 해외여행">
+      <datalist id="categoryOptions"></datalist>
+    </div>
     <div class="field">
       <label>무슨 일로 찍었나요? (예: 생일, 오타루 여행, 그냥 일상)</label>
       <input type="text" id="fOccasion" maxlength="500" placeholder="선택한 사진 전체에 함께 적용됩니다">
@@ -156,6 +183,10 @@
       <div class="comment-form">
         <input type="text" id="commentInput" placeholder="댓글을 남겨보세요" maxlength="1000"
                onkeydown="if(event.key==='Enter') submitComment()">
+        <div class="emoji-picker">
+          <button type="button" class="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
+          <div class="emoji-popup" id="emojiPopup"></div>
+        </div>
         <button onclick="submitComment()">등록</button>
       </div>
     </div>
@@ -177,6 +208,8 @@ async function authFetch(path, opts={}){
 }
 
 let me = null;
+let currentQuery = '';
+let currentCategory = '';
 (async function init(){
   try{
     const r = await authFetch('/auth/me');
@@ -187,6 +220,7 @@ let me = null;
       document.getElementById('annNavLink').style.display = 'inline';
     }
   }catch(e){}
+  await loadCategories();
   await loadGrid();
 })();
 
@@ -212,10 +246,15 @@ function fileUrl(relPath){ return '/uploads/' + relPath; }
 
 let allPhotos = [];
 async function loadGrid(){
-  const r = await authFetch('/photos?limit=200');
+  const params = new URLSearchParams({limit: '200'});
+  if(currentQuery) params.set('q', currentQuery);
+  if(currentCategory) params.set('category', currentCategory);
+  const r = await authFetch('/photos?' + params.toString());
   allPhotos = await r.json();
   const grid = document.getElementById('grid');
   document.getElementById('emptyMsg').style.display = allPhotos.length ? 'none' : 'block';
+  document.getElementById('emptyMsg').textContent = (currentQuery || currentCategory)
+    ? '조건에 맞는 사진이 없어요.' : '아직 업로드된 사진이 없어요.';
   grid.innerHTML = allPhotos.map(p => {
     const thumbSrc = fileUrl(p.thumbnail_path || p.file_path);
     const inner = p.media_type === 'video'
@@ -224,6 +263,35 @@ async function loadGrid(){
     const occ = p.occasion ? `<span class="occ-badge">${escapeHtml(p.occasion)}</span>` : '';
     return `<div class="thumb" onclick="openDetail(${p.id})">${inner}${occ}</div>`;
   }).join('');
+}
+
+function runSearch(){
+  currentQuery = document.getElementById('searchInput').value.trim();
+  loadGrid();
+}
+
+async function loadCategories(){
+  const r = await authFetch('/photos/categories');
+  const cats = await r.json();
+  document.getElementById('categoryOptions').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  const presets = ['일상', '여름휴가', '해외여행'];
+  const merged = [...presets, ...cats.filter(c => !presets.includes(c))];
+  renderCatChips(merged);
+}
+function renderCatChips(cats){
+  const row = document.getElementById('catRow');
+  const chips = ['', ...cats];
+  row.innerHTML = chips.map(c => {
+    const label = c || '전체';
+    const active = c === currentCategory ? ' active' : '';
+    return `<button class="cat-chip${active}" onclick="selectCategory('${c.replace(/'/g, "\\'")}')">${escapeHtml(label)}</button>`;
+  }).join('');
+}
+function selectCategory(c){
+  currentCategory = c;
+  document.querySelectorAll('.cat-chip').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  loadGrid();
 }
 
 function escapeHtml(s){
@@ -236,6 +304,7 @@ function openUploader(){
   selectedFiles = [];
   document.getElementById('fFiles').value = '';
   document.getElementById('fOccasion').value = '';
+  document.getElementById('fCategory').value = '';
   renderPreviews();
   document.getElementById('uploadOverlay').classList.add('open');
 }
@@ -272,9 +341,12 @@ async function submitUpload(){
     selectedFiles.forEach(f => fd.append('files', f.file));
     const occasion = document.getElementById('fOccasion').value.trim();
     if(occasion) fd.append('occasion', occasion);
+    const category = document.getElementById('fCategory').value.trim();
+    if(category) fd.append('category', category);
     const r = await authFetch('/photos', {method:'POST', body: fd});
     if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail || '업로드에 실패했습니다'); return; }
     closeUploader();
+    await loadCategories();
     await loadGrid();
   } finally {
     btn.disabled = false;
@@ -365,6 +437,40 @@ async function deleteComment(photoId, commentId){
   _replacePhotoInList(updated);
   renderComments(updated);
 }
+
+// ── 이모티콘 선택기 ──
+const EMOJI_LIST = [
+  '😀','😁','😂','🤣','😊','😍','🥰','😘','😎','🤩',
+  '😅','😇','🙂','😉','😋','😜','🤔','😐','😴','😭',
+  '😢','😡','🥺','😱','🙄','😏','👍','👎','👏','🙌',
+  '🙏','💪','❤️','💕','💖','💗','💛','🧡','💜','🖤',
+  '✨','🎉','🎊','🔥','⭐','🌟','☀️','🌈','🌙','⛄',
+  '🍀','🌸','🌺','🍎','🍕','🍔','🍰','☕','🍺','🍾',
+  '✈️','🚗','🏖️','🏔️','📸','💯','✅','❓','❗','💤',
+];
+let emojiPopupInited = false;
+function toggleEmojiPicker(){
+  const popup = document.getElementById('emojiPopup');
+  if(!emojiPopupInited){
+    popup.innerHTML = EMOJI_LIST.map(e => `<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+    emojiPopupInited = true;
+  }
+  popup.classList.toggle('open');
+}
+function insertEmoji(emoji){
+  const input = document.getElementById('commentInput');
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+  input.focus();
+  const pos = start + emoji.length;
+  input.setSelectionRange(pos, pos);
+  document.getElementById('emojiPopup').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  const picker = document.querySelector('.emoji-picker');
+  if(picker && !picker.contains(e.target)) document.getElementById('emojiPopup').classList.remove('open');
+});
 
 async function editOccasion(id){
   const p = allPhotos.find(x => x.id === id);

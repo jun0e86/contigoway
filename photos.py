@@ -79,7 +79,11 @@ def _extract_metadata(abs_path: str) -> dict:
 
 
 def _reverse_geocode(lat: float, lon: float) -> Optional[str]:
-    """GPS 좌표 -> 장소명. 실패하면 None (업로드 자체는 계속 진행)."""
+    """GPS 좌표 -> 장소명. 실패하면 None (업로드 자체는 계속 진행).
+
+    검색 기능에서 '노원'(구/동 단위)뿐 아니라 '일본'(국가명)으로도 찾을 수 있도록
+    구/동 + 시/도 + 국가까지 이어 붙인다.
+    """
     try:
         resp = requests.get(
             "https://nominatim.openstreetmap.org/reverse",
@@ -90,12 +94,13 @@ def _reverse_geocode(lat: float, lon: float) -> Optional[str]:
         resp.raise_for_status()
         data = resp.json()
         addr = data.get("address", {})
-        # 너무 상세한 지번보다 동네~시/도 정도로 사람이 읽기 좋은 수준으로 조합
         parts = [
             addr.get("city_district") or addr.get("borough") or addr.get("suburb") or addr.get("town") or addr.get("village"),
             addr.get("city") or addr.get("county"),
+            addr.get("state") if addr.get("country") and addr.get("country") != "대한민국" else None,
+            addr.get("country"),
         ]
-        name = " ".join(p for p in parts if p) or data.get("display_name")
+        name = " ".join(dict.fromkeys(p for p in parts if p)) or data.get("display_name")
         return name[:255] if name else None
     except Exception:
         return None
@@ -130,7 +135,7 @@ def _fetch_weather(for_date: date_cls, lat: float, lon: float) -> Optional[dict]
 
 
 # ── 파일 저장 (diary.py의 _save_media_file과 동일한 변환 로직) ────
-def _save_photo_file(upload: UploadFile, user_id: int, occasion: Optional[str]) -> Photo:
+def _save_photo_file(upload: UploadFile, user_id: int, occasion: Optional[str], category: Optional[str]) -> Photo:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext in ALLOWED_IMAGE_EXT:
         media_type = "image"
@@ -223,6 +228,7 @@ def _save_photo_file(upload: UploadFile, user_id: int, occasion: Optional[str]) 
         weather_temp_max=weather["temp_max"] if weather else None,
         weather_temp_min=weather["temp_min"] if weather else None,
         occasion=(occasion or "").strip()[:500] or None,
+        category=(category or "").strip()[:50] or None,
     )
 
 
@@ -252,6 +258,7 @@ class PhotoOut(BaseModel):
     weather_temp_max: Optional[int]
     weather_temp_min: Optional[int]
     occasion: Optional[str]
+    category: Optional[str]
     uploader_id: int
     uploader_name: Optional[str] = None
     comments: list[CommentOut] = []
@@ -278,6 +285,7 @@ def _to_photo_out(photo: Photo, uploader_names: dict) -> PhotoOut:
 def upload_photos(
     files: list[UploadFile] = File(...),
     occasion: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -288,7 +296,7 @@ def upload_photos(
 
     saved = []
     for f in files:
-        photo = _save_photo_file(f, user.id, occasion)
+        photo = _save_photo_file(f, user.id, occasion, category)
         db.add(photo)
         saved.append(photo)
     db.commit()
@@ -300,17 +308,41 @@ def upload_photos(
     return out
 
 
+@router.get("/categories", response_model=list[str])
+def list_categories(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """업로드에 실제로 쓰인 카테고리 목록(중복 제거, 알파벳/가나다 정렬 아님 - 최신순)."""
+    rows = (
+        db.query(Photo.category)
+        .filter(Photo.category.isnot(None))
+        .order_by(Photo.created_at.desc())
+        .all()
+    )
+    seen, out = set(), []
+    for (c,) in rows:
+        if c and c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
 @router.get("", response_model=list[PhotoOut])
 def list_photos(
     limit: int = 60,
     offset: int = 0,
+    q: Optional[str] = None,        # 장소/태그 검색어 (예: "노원", "일본")
+    category: Optional[str] = None,  # 카테고리 필터 (예: "여름휴가")
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     limit = min(max(limit, 1), 200)
+    query = db.query(Photo)
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter((Photo.location_name.ilike(like)) | (Photo.occasion.ilike(like)))
+    if category and category.strip():
+        query = query.filter(Photo.category == category.strip())
     rows = (
-        db.query(Photo)
-        .order_by(Photo.taken_at.desc().nullslast(), Photo.created_at.desc())
+        query.order_by(Photo.taken_at.desc().nullslast(), Photo.created_at.desc())
         .offset(offset).limit(limit).all()
     )
     uploader_names = {u.id: u.full_name for u in db.query(User).all()}
@@ -319,6 +351,7 @@ def list_photos(
 
 class PhotoUpdate(BaseModel):
     occasion: Optional[str] = None
+    category: Optional[str] = None
 
 
 @router.patch("/{photo_id}", response_model=PhotoOut)
@@ -333,6 +366,8 @@ def update_photo(
         raise HTTPException(403, "본인이 올린 사진만 수정할 수 있습니다")
     if body.occasion is not None:
         photo.occasion = body.occasion.strip()[:500] or None
+    if body.category is not None:
+        photo.category = body.category.strip()[:50] or None
     db.commit()
     db.refresh(photo)
     uploader_names = {u.id: u.full_name for u in db.query(User).all()}
