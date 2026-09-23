@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · 법령검색</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;--pink:#FF2D55;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+    --good:#0071E3;--warn:#B36B00;--bad:#D93025;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;height:48px;font-size:.82rem;font-weight:500}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links a{color:var(--gray);text-decoration:none}
+  .nav-links .active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:760px;margin:0 auto;padding:0 24px 100px}
+
+  .page-header{padding:36px 0 6px}
+  .page-header h1{font-size:1.5rem;font-weight:700}
+  .page-header p{font-size:.85rem;color:var(--gray);margin-top:6px}
+
+  .search-box{display:flex;gap:8px;margin:22px 0 6px}
+  .search-box input{flex:1;padding:13px 16px;border:1px solid var(--line);border-radius:12px;font-size:.92rem;outline:none;font-family:inherit}
+  .search-box input:focus{border-color:var(--blue)}
+  .search-box button{background:var(--black);color:#fff;border:none;border-radius:12px;padding:0 22px;font-size:.9rem;font-weight:600;cursor:pointer}
+  .search-box button:disabled{opacity:.5;cursor:default}
+  .hint{font-size:.76rem;color:var(--gray-light);margin-bottom:18px}
+  .hint b{color:var(--gray)}
+
+  .state-msg{padding:40px 0;text-align:center;color:var(--gray);font-size:.9rem}
+  .state-msg.error{color:var(--bad)}
+
+  .keywords{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 22px}
+  .keywords span{background:var(--panel);border-radius:980px;padding:5px 12px;font-size:.76rem;color:var(--gray)}
+
+  .section-title{font-size:1rem;font-weight:700;margin:28px 0 12px;display:flex;align-items:center;gap:8px}
+  .section-title .count{font-size:.76rem;color:var(--gray-light);font-weight:500}
+
+  .card{background:var(--panel);border-radius:16px;padding:18px 20px;margin-bottom:12px}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .card-title{font-size:.94rem;font-weight:700;line-height:1.4}
+  .card-meta{font-size:.76rem;color:var(--gray-light);white-space:nowrap;flex-shrink:0;margin-top:2px}
+  .card-body{font-size:.85rem;color:var(--gray);line-height:1.65;white-space:pre-wrap}
+  .card-body.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .card-more{font-size:.78rem;color:var(--blue);cursor:pointer;margin-top:8px;display:inline-block}
+  .card-link{font-size:.78rem;color:var(--blue);text-decoration:none;margin-top:10px;display:inline-block}
+
+  .ref-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:10px}
+  .ref-card .ref-title{font-size:.9rem;font-weight:700;color:var(--blue);margin-bottom:6px}
+  .ref-card .ref-body{font-size:.83rem;color:var(--gray);line-height:1.7;white-space:pre-wrap}
+
+  .disclaimer{margin-top:32px;padding:16px 18px;background:var(--panel);border-radius:14px;font-size:.78rem;color:var(--gray-light);line-height:1.6}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit;font-weight:600;display:flex;align-items:center;gap:8px">
+      <svg width="26" height="26" viewBox="0 0 34 34" aria-hidden="true" style="flex-shrink:0">
+        <rect width="34" height="34" rx="9" fill="#0071E3"/>
+        <path d="M9 24 C9 24 11 14 17 12 C23 10 25 14 25 14" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M22.2 11.2 c0-1.3 1-2 2-2 s2 0.7 2 2 c0 1.6 -2 3.2 -2 3.2 s-2 -1.6 -2 -3.2 z" fill="#fff"/>
+      </svg>
+      <span>contigo<span style="color:#0071E3">way</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="/index.html?ann=1" id="annNavLink" style="display:none">📢 공지관리</a>
+      <a href="/index.html">부동산</a>
+      <a href="/index.html">여행</a>
+      <a href="/index.html">사진모음</a>
+      <a href="/diary.html">일기</a>
+      <a href="/todo.html">TODO</a>
+      <a href="/schedule.html">스케줄</a>
+      <span class="active">법령검색</span>
+      <a href="/users.html" id="usersNavLink" style="display:none">사용자 관리</a>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>법령검색</h1>
+    <p>상황을 문장으로 입력하면, 관련 조문 · 판례 · 법령해석례를 찾아드립니다.</p>
+  </div>
+
+  <div class="search-box">
+    <input id="q" type="text" placeholder="예: 환자 동의 없이 진료기록을 공유했어요" maxlength="500"
+           onkeydown="if(event.key==='Enter') runSearch()">
+    <button id="searchBtn" onclick="runSearch()">검색</button>
+  </div>
+  <div class="hint">키워드 기반 검색입니다. <b>법률 자문이 아니며</b>, 참고용으로만 활용해주세요.</div>
+
+  <div id="result"></div>
+</main>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){ localStorage.clear(); location.href = '/login.html'; }
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+(async function init(){
+  try{
+    const r = await authFetch('/auth/me');
+    const me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+    if(me.role === 'admin'){
+      document.getElementById('usersNavLink').style.display = 'inline';
+      document.getElementById('annNavLink').style.display = 'inline';
+    }
+  }catch(e){}
+})();
+
+function escapeHtml(s){
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function precCard(p){
+  const body = p.summary || p.held || '';
+  const bodyId = 'prec-' + p.id;
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title">${escapeHtml(p.title)}</div>
+        <div class="card-meta">${escapeHtml(p.case_type || '')}</div>
+      </div>
+      <div class="card-meta" style="margin-bottom:8px">${escapeHtml(p.source_label)}</div>
+      <div class="card-body clamp" id="${bodyId}">${escapeHtml(body)}</div>
+      <span class="card-more" onclick="document.getElementById('${bodyId}').classList.toggle('clamp'); this.textContent = this.textContent==='더 보기'?'접기':'더 보기'">더 보기</span>
+      ${p.link ? `<a class="card-link" href="https://www.law.go.kr${p.link}" target="_blank" rel="noopener">law.go.kr에서 원문 보기 →</a>` : ''}
+    </div>`;
+}
+
+function expcCard(e){
+  const bodyId = 'expc-' + e.id;
+  const body = (e.question ? '[질의]\n' + e.question + '\n\n' : '') + (e.answer ? '[회답]\n' + e.answer : '');
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title">${escapeHtml(e.title)}</div>
+      </div>
+      <div class="card-meta" style="margin-bottom:8px">${escapeHtml(e.source_label)}</div>
+      <div class="card-body clamp" id="${bodyId}">${escapeHtml(body)}</div>
+      <span class="card-more" onclick="document.getElementById('${bodyId}').classList.toggle('clamp'); this.textContent = this.textContent==='더 보기'?'접기':'더 보기'">더 보기</span>
+      ${e.link ? `<a class="card-link" href="https://www.law.go.kr${e.link}" target="_blank" rel="noopener">law.go.kr에서 원문 보기 →</a>` : ''}
+    </div>`;
+}
+
+function refCard(a){
+  return `
+    <div class="ref-card">
+      <div class="ref-title">${escapeHtml(a.ref)}${a.title ? ' · ' + escapeHtml(a.title) : ''}</div>
+      <div class="ref-body">${escapeHtml(a.text)}</div>
+    </div>`;
+}
+
+async function runSearch(){
+  const q = document.getElementById('q').value.trim();
+  const result = document.getElementById('result');
+  const btn = document.getElementById('searchBtn');
+  if(!q){ result.innerHTML = '<div class="state-msg error">상황을 입력해주세요.</div>'; return; }
+
+  btn.disabled = true;
+  result.innerHTML = '<div class="state-msg">검색 중입니다...</div>';
+
+  try{
+    const r = await fetch(`${API}/legal-review/situation-search?q=${encodeURIComponent(q)}`);
+    const data = await r.json();
+    if(!r.ok){
+      result.innerHTML = `<div class="state-msg error">${escapeHtml(data.detail || '검색에 실패했습니다.')}</div>`;
+      return;
+    }
+
+    let html = '';
+    if(data.keywords && data.keywords.length){
+      html += `<div class="keywords">${data.keywords.map(k=>`<span>${escapeHtml(k)}</span>`).join('')}</div>`;
+    }
+    if(data.ref_articles && data.ref_articles.length){
+      html += `<div class="section-title">관련 조문 <span class="count">${data.ref_articles.length}건</span></div>`;
+      html += data.ref_articles.map(refCard).join('');
+    }
+    if(data.precedents && data.precedents.length){
+      html += `<div class="section-title">관련 판례 <span class="count">${data.precedents.length}건</span></div>`;
+      html += data.precedents.map(precCard).join('');
+    }
+    if(data.interpretations && data.interpretations.length){
+      html += `<div class="section-title">관련 법령해석례 <span class="count">${data.interpretations.length}건</span></div>`;
+      html += data.interpretations.map(expcCard).join('');
+    }
+    html += `<div class="disclaimer">${escapeHtml(data.disclaimer)}</div>`;
+    result.innerHTML = html;
+  }catch(e){
+    result.innerHTML = '<div class="state-msg error">검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.</div>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
