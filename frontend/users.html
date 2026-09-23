@@ -80,7 +80,6 @@
     <div class="nav-links">
       <a href="/index.html?ann=1">📢 공지관리</a>
       <a href="/index.html">홈</a>
-      <a href="/legal-search.html">법령검색</a>
       <span class="active">사용자 관리</span>
       <span class="greet" id="greetName"></span>
       <span class="logout-link" onclick="logout()">로그아웃</span>
@@ -109,6 +108,7 @@
     <div class="tab" data-tab="all" onclick="switchTab('all')">전체</div>
   </div>
 
+  <div id="listCount" style="font-size:.8rem;color:var(--gray);margin-bottom:10px"></div>
   <div id="userList"></div>
 </main>
 
@@ -171,6 +171,7 @@ function renderList(){
   if(currentTab !== 'all'){
     list = allUsers.filter(u => u.status === currentTab);
   }
+  document.getElementById('listCount').textContent = list.length + '건 조회완료';
   if(!list.length){
     box.innerHTML = '<div class="empty">해당하는 사용자가 없어요</div>';
     return;
