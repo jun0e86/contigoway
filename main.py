@@ -18,6 +18,8 @@ from models_addition import GoogleAccount  # noqa: F401  (create_all이 인식�
 from google_auth import router as google_auth_router
 from scheduler import start_scheduler
 from flights import router as flights_router
+from legal_review import build_search_router
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -46,6 +48,8 @@ app.include_router(visits_router)
 app.include_router(announcements_router)
 app.include_router(google_auth_router)
 app.include_router(flights_router)
+app.include_router(build_search_router())
+
 
 
 @app.on_event("startup")
