@@ -12,7 +12,7 @@
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{font-size:18px}
-  @media (max-width:640px){ html{font-size:21px} }
+  @media (max-width:640px){ html{font-size:16px} }
   body{line-height:1.5}
   body{
     background:var(--bg);color:var(--black);
@@ -120,20 +120,51 @@
   .other-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
   .other-card{border:1px dashed var(--line);border-radius:18px;padding:28px 14px;text-align:center;color:var(--gray-light);font-size:.88rem;font-weight:500}
 
+  /* 숙소정보/후기 탭 (노랑풍선 스타일 참고) */
+  .trip-tabs{display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:18px}
+  .trip-tab-btn{flex:1;border:none;background:#fff;color:var(--gray);padding:14px 8px;font-size:.88rem;font-weight:700;cursor:pointer;border-right:1px solid var(--line)}
+  .trip-tab-btn:last-child{border-right:none}
+  .trip-tab-btn.active{background:var(--black);color:#fff}
+  .trip-tab-panel{display:none}
+  .trip-tab-panel.active{display:block}
+  .hotel-info-card{background:var(--panel);border-radius:16px;padding:22px 24px}
+  .hotel-info-card h3{font-size:1.05rem;font-weight:700;margin-bottom:6px}
+  .hotel-info-card .rating-badge{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:980px;padding:5px 12px;font-size:.82rem;font-weight:700;margin-bottom:14px}
+  .hotel-info-card .rating-badge b{color:#0C7A3D}
+  .amenity-chip{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:980px;padding:6px 13px;font-size:.78rem;color:var(--gray);margin:0 6px 6px 0}
+  .rating-bars{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
+  .rating-bar-row{font-size:.78rem;color:var(--gray)}
+  .rating-bar-row .track{background:var(--line);height:5px;border-radius:980px;margin-top:4px;overflow:hidden}
+  .rating-bar-row .fill{background:var(--blue);height:100%}
+  .review-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .review-card{background:var(--panel);border-radius:16px;padding:18px 20px}
+  .review-card .stars{color:#F5A623;font-size:.85rem;margin-bottom:8px}
+  .review-card p{font-size:.86rem;line-height:1.5;color:var(--black);margin-bottom:8px}
+  .review-card .meta{font-size:.75rem;color:var(--gray-light)}
+  .review-source{font-size:.72rem;color:var(--gray-light);margin-top:10px;text-align:right}
+
   @media(max-width:760px){
+    .review-grid{grid-template-columns:1fr}
+    .rating-bars{grid-template-columns:1fr}
     .tile-grid,.other-grid{grid-template-columns:1fr}
     .day-row{grid-template-columns:1fr;gap:8px}
     .nav-links span:not(.greet):not(.active):not(.logout-link){display:none}
     .nav-links a{display:inline}
+    .nav-links{gap:12px;font-size:.76rem}
+    .nav-inner{padding:0 14px}
     .mega-inner{grid-template-columns:1fr 1fr;gap:20px}
+  }
+  @media(max-width:400px){
+    .nav-links .greet{display:none}
   }
 
   /* 방문자 카운터 */
   .visit-counter{
-    position:fixed;top:14px;left:16px;font-size:.82rem;color:var(--black);z-index:60;
-    background:#fff;border:1px solid var(--line);padding:8px 16px;border-radius:980px;
-    display:flex;gap:14px;box-shadow:0 4px 14px rgba(0,0,0,.08);font-weight:600;
+    position:fixed;bottom:16px;left:16px;font-size:.78rem;color:var(--black);z-index:60;
+    background:#fff;border:1px solid var(--line);padding:7px 14px;border-radius:980px;
+    display:flex;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.08);font-weight:600;
   }
+  @media(max-width:640px){ .visit-counter{font-size:.7rem;padding:6px 12px;gap:8px} }
   .visit-counter b{color:var(--blue);font-weight:700}
 
   /* 진척도 바 */
@@ -168,13 +199,14 @@
   .ann-admin-panel .current{font-size:.78rem;color:var(--gray)}
   .ann-admin-panel .hide-btn{background:#fff;color:#D93025;border:1px solid #F3C0C0;padding:6px 12px;border-radius:8px;font-size:.75rem;cursor:pointer}
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdn.maptiler.com/maptiler-sdk-js/v1.1.2/maptiler-sdk.css" />
+<script src="https://cdn.maptiler.com/maptiler-sdk-js/v1.1.2/maptiler-sdk.umd.min.js"></script>
 <style>
-  .route-time-label{background:#fff;border:1px solid #D2D2D7;border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700;color:#1D1D1F;box-shadow:0 1px 3px rgba(0,0,0,.18)}
-  .route-time-label::before{display:none}
+  .route-time-label{background:#fff;border:1px solid #D2D2D7;border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700;color:#1D1D1F;box-shadow:0 1px 3px rgba(0,0,0,.18);white-space:nowrap}
+  .maptiler-emoji-marker{font-size:20px;line-height:1;transform:translateY(-2px)}
 </style>
 </head>
+
 <body>
 
 <div class="visit-counter" id="visitCounter"></div>
@@ -191,7 +223,6 @@
     </a>
     <div class="nav-links" id="navLinks">
       <span class="nav-item" id="annAdminToggle" style="display:none" onclick="toggleAnnAdminPanel()">📢 공지관리</span>
-      <span class="nav-item" data-menu="realestate">부동산</span>
       <span class="nav-item active" data-menu="travel">여행</span>
       <span class="nav-item" data-menu="photos">사진모음</span>
       <a href="/diary.html">일기</a>
@@ -294,7 +325,11 @@
   </div>
 
   <div style="margin-top:28px">
-    <div class="plan-header"><h2>인천 → 신치토세 이동</h2></div>
+    <div class="plan-header"><h2>인천 ⇄ 신치토세 왕복 이동</h2></div>
+    <div class="legend" style="display:flex;gap:16px;justify-content:center;font-size:.78rem;color:var(--gray);margin-bottom:10px">
+      <span><span style="color:#0071E3">●</span> 가는편 12/16 (인천→신치토세)</span>
+      <span><span style="color:#FF2D55">●</span> 오는편 12/19 (신치토세→인천)</span>
+    </div>
     <div id="flightMap" style="height:240px;border-radius:16px;overflow:hidden;border:1px solid var(--line)"></div>
   </div>
 
@@ -311,7 +346,14 @@
     </div>
     <div class="day-list" id="dayList"></div>
 
-    <div id="dayMap" style="height:360px;border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-top:14px"></div>
+    <div style="position:relative">
+      <div id="dayMap" style="height:360px;border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-top:14px;transition:height .25s ease"></div>
+      <div style="position:absolute;top:24px;left:10px;z-index:1000;display:flex;flex-direction:column;gap:2px">
+        <button onclick="dayMap.zoomIn()" style="width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:1.2rem;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)">+</button>
+        <button onclick="dayMap.zoomOut()" style="width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:1.2rem;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)">−</button>
+      </div>
+      <button id="dayMapSizeBtn" onclick="toggleDayMapSize()" style="position:absolute;top:24px;right:10px;z-index:1000;padding:7px 12px;border-radius:980px;border:1px solid var(--line);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)">⤢ 크게 보기</button>
+    </div>
     <div style="font-size:1.05rem;color:var(--black);margin-top:10px;font-weight:600;display:flex;gap:20px;flex-wrap:wrap">
       <span><span style="color:#0071E3">●</span> 🚆 기차/버스</span>
       <span><span style="color:#0C7A3D">●</span> 🚶 도보</span>
@@ -321,6 +363,87 @@
     <div id="sidePanel" style="margin-top:16px;background:var(--panel);border-radius:16px;padding:18px 20px">
       <h3 style="font-size:.9rem;font-weight:700;margin-bottom:10px">📍 이 날 가볼만한 맛집 · 명소</h3>
       <div id="sideList"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:32px">
+    <div class="plan-header"><h2>숙소 &amp; 후기</h2></div>
+    <div class="trip-tabs">
+      <button class="trip-tab-btn active" id="tripTabHotelBtn" onclick="switchTripTab('hotel')">숙소 정보</button>
+      <button class="trip-tab-btn" id="tripTabReviewBtn" onclick="switchTripTab('review')">후기</button>
+    </div>
+
+    <div class="trip-tab-panel active" id="tripTabHotel">
+      <div class="hotel-info-card">
+        <h3>🏨 그란벨 호텔 스스키노</h3>
+        <div class="rating-badge">⭐ <b>8.6</b>/10 · 우수 (해외 예약 플랫폼 종합 평점)</div>
+        <p style="font-size:.85rem;color:var(--gray);line-height:1.6;margin-bottom:14px">
+          호수이스스키노역 바로 앞, 스스키노역까지 도보 약 4분. 다누키코지 상점가까지 도보 약 10분 거리로 삿포로 시내 번화가 접근성이 좋은 위치예요.
+        </p>
+        <div>
+          <span class="amenity-chip">🏋️ 피트니스룸</span>
+          <span class="amenity-chip">🛁 대욕장(온천탕)</span>
+          <span class="amenity-chip">🍸 바/라운지</span>
+          <span class="amenity-chip">🍳 조식 가능</span>
+          <span class="amenity-chip">🧺 세탁시설</span>
+          <span class="amenity-chip">🕐 24시간 프런트</span>
+        </div>
+        <div class="rating-bars">
+          <div class="rating-bar-row">청결도 <b>9.0</b><div class="track"><div class="fill" style="width:90%"></div></div></div>
+          <div class="rating-bar-row">직원 서비스 <b>8.2</b><div class="track"><div class="fill" style="width:82%"></div></div></div>
+          <div class="rating-bar-row">편의시설 <b>8.6</b><div class="track"><div class="fill" style="width:86%"></div></div></div>
+          <div class="rating-bar-row">시설 상태 <b>8.8</b><div class="track"><div class="fill" style="width:88%"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trip-tab-panel" id="tripTabReview">
+      <div class="review-grid">
+        <div class="review-card">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>위치도 좋고 시설도 알차고 가격 대비 만족도가 높았다는 후기예요. 다시 묵고 싶다는 평.</p>
+          <div class="meta">4박 투숙 · 해외 투숙객</div>
+        </div>
+        <div class="review-card">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>직원들이 친절하고 인테리어가 깔끔하고 모던하다는 평. 방은 조금 좁지만 지내기엔 충분했다고.</p>
+          <div class="meta">해외 투숙객</div>
+        </div>
+        <div class="review-card">
+          <div class="stars">★★★★☆ 8/10</div>
+          <p>방은 아담한 편이지만 청결했고 직원 응대가 좋았다는 후기.</p>
+          <div class="meta">2박 투숙 · 해외 투숙객</div>
+        </div>
+        <div class="review-card">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>대중교통과 도보로 근처 맛집·쇼핑가 접근이 편했다는 평. 꼭대기층 온천탕도 장점으로 꼽힘.</p>
+          <div class="meta">해외 투숙객</div>
+        </div>
+        <div class="review-card review-more-item" style="display:none">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>가성비가 뛰어나고 숨은 명소 같은 호텔이라는 평. 꼭대기층 피트니스룸·온천탕도 만족스러웠다고.</p>
+          <div class="meta">4박 투숙 · 해외 투숙객</div>
+        </div>
+        <div class="review-card review-more-item" style="display:none">
+          <div class="stars">★★★★☆ 8/10</div>
+          <p>방은 깨끗했고 전반적으로 무난했다는 짧은 후기.</p>
+          <div class="meta">2박 투숙 · 해외 투숙객</div>
+        </div>
+        <div class="review-card review-more-item" style="display:none">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>객실 컨디션이 좋았다는 짧고 만족스러운 후기.</p>
+          <div class="meta">3박 투숙 · 해외 투숙객</div>
+        </div>
+        <div class="review-card review-more-item" style="display:none">
+          <div class="stars">★★★★★ 10/10</div>
+          <p>친절한 응대와 세련된 인테리어, 도보로 갈 수 있는 맛집·쇼핑가까지 만족스러웠다는 평.</p>
+          <div class="meta">해외 투숙객</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <button class="duration-btn" id="reviewMoreBtn" onclick="toggleMoreReviews()">후기 더보기 (+4)</button>
+      </div>
+      <div class="review-source">종합 평점 및 후기 출처: Hotels.com / Hotelscombined 등 해외 예약 플랫폼</div>
     </div>
   </div>
 
@@ -353,10 +476,7 @@
   <div class="other-sectors">
     <h2>다른 섹터는 곧 채워질 예정이에요</h2>
     <div class="other-grid">
-      <div class="other-card">부동산</div>
       <div class="other-card">사진모음</div>
-      <div class="other-card">스케줄관리</div>
-      <div class="other-card">기타</div>
     </div>
   </div>
 </main>
@@ -633,7 +753,31 @@ async function rejectUser(id){
 // ── 여행 위젯 (예시 데이터) ──
 // ── 삿포로 3박4일 (12/16~12/19) 고정 일정 ──
 // 좌표는 대략적인 위치입니다 (지도 표시/동선 시각화 용도).
-const HOTEL = { name:'란도르 호텔 삿포로 헤리티지', coord:[43.0590,141.3540], pricePerNight:173000 };
+const HOTEL = { name:'그란벨 호텔 스스키노', coord:[43.0562,141.3548], pricePerNight:98000 };
+
+let dayMapExpanded = false;
+function toggleDayMapSize(){
+  dayMapExpanded = !dayMapExpanded;
+  document.getElementById('dayMap').style.height = dayMapExpanded ? '640px' : '360px';
+  document.getElementById('dayMapSizeBtn').textContent = dayMapExpanded ? '⤡ 작게 보기' : '⤢ 크게 보기';
+  setTimeout(()=>dayMap.resize(), 260);
+}
+
+function switchTripTab(tab){
+  document.getElementById('tripTabHotelBtn').classList.toggle('active', tab==='hotel');
+  document.getElementById('tripTabReviewBtn').classList.toggle('active', tab==='review');
+  document.getElementById('tripTabHotel').classList.toggle('active', tab==='hotel');
+  document.getElementById('tripTabReview').classList.toggle('active', tab==='review');
+}
+
+let reviewsExpanded = false;
+function toggleMoreReviews(){
+  reviewsExpanded = !reviewsExpanded;
+  document.querySelectorAll('.review-more-item').forEach(el=>{
+    el.style.display = reviewsExpanded ? '' : 'none';
+  });
+  document.getElementById('reviewMoreBtn').textContent = reviewsExpanded ? '후기 접기' : '후기 더보기 (+4)';
+}
 
 function haversineKm(a, b){
   const R = 6371;
@@ -666,55 +810,67 @@ function formatPriceList(items){
 
 const SAPPORO_DAYS = [
   { title:'도착 · 삿포로 시내 · 스스키노', stops:[
-      { name:'신치토세공항 도착', coord:[42.7752,141.6923], mode:'기차' },
+      { name:'신치토세공항 도착', coord:[42.7752,141.6923], mode:'기차', transit:'JR 쾌속에어포트(快速エアポート) · 신치토세공항역(터미널 지하1층) 승차 → 삿포로역 하차', liveUrl:'https://www3.jrhokkaido.co.jp/webunkou/area_spo.html', liveLabel:'JR 실시간 운행정보' },
       { name:'삿포로역 (전철 추천 37분 · 택시 추천 50분)', coord:[43.0686,141.3508], mode:'도보' },
-      { name:'란도르 호텔 삿포로 헤리티지 체크인 (도보 약 8분)', coord:[43.0590,141.3540], mode:'도보' },
+      { name:'그란벨 호텔 스스키노 체크인 (호수이스스키노역 바로 앞)', coord:[43.0562,141.3548], mode:'도보', transit:'도보 약 20분, 또는 지하철 난보쿠선(南北線·초록) 삿포로역 → 스스키노역 (2정거장, 약 5분)', liveUrl:'https://www.city.sapporo.jp/st/index.html', liveLabel:'지하철 실시간 운행정보' },
       { name:'오도리공원 (도보 약 3분)', coord:[43.0605,141.3540], mode:'도보' },
       { name:'대관람차 노리아 (스스키노) (도보 약 8분)', coord:[43.0555,141.3532], mode:'도보' },
       { name:'스스키노 야경 (도보 약 2분)', coord:[43.0555,141.3535] },
     ], recs:[
-      { name:'테시카가라멘 요코쵸점', desc:'스스키노 라멘 요코초 지점, 한국어 키오스크가 있어 주문 편함', price:[{label:'미소라멘',yen:1200}], photo:'🍜' },
-      { name:'타이슈 사카바 오레류 혼마루', desc:'이자카야, 첫날 저녁 가볍게 한잔하기 좋은 곳', price:[{label:'모둠안주+음료',yen:2500}], photo:'🍶' },
+      { name:'테시카가라멘 요코쵸점', desc:'스스키노 라멘 요코초 지점, 한국어 키오스크가 있어 주문 편함', price:[{label:'미소라멘',yen:1200}], photo:'🍜',
+        menuJa:[{ko:'미소라멘',ja:'味噌ラーメン'},{ko:'쇼유라멘',ja:'醤油ラーメン'},{ko:'차슈 토핑',ja:'チャーシュートッピング'}],
+        photoTip:'라멘 요코초 좁은 골목 입구의 빨간 간판들 앞에서 찍으면 분위기 잘 나와요' },
+      { name:'타이슈 사카바 오레류 혼마루', desc:'이자카야, 첫날 저녁 가볍게 한잔하기 좋은 곳', price:[{label:'모둠안주+음료',yen:2500}], photo:'🍶',
+        menuJa:[{ko:'모둠안주',ja:'盛り合わせ'},{ko:'하이볼',ja:'ハイボール'},{ko:'나마비루(생맥주)',ja:'生ビール'}] },
     ]},
   { title:'비에이 · 후라노 근교 투어', stops:[
-      { name:'삿포로역 집합', coord:[43.0686,141.3508], mode:'버스' },
+      { name:'삿포로역 집합', coord:[43.0686,141.3508], mode:'버스', transit:'전세 버스 투어(데이투어) · 삿포로역 북쪽 출구 인근 집합 (정확한 집합 장소는 예약한 투어사 바우처 확인 필요)' },
       { name:'흰수염폭포 (버스투어 약 2시간)', coord:[43.4614,142.4756], mode:'버스' },
       { name:'청의 호수(아오이이케) (버스 약 10분)', coord:[43.4534,142.4790], mode:'버스' },
       { name:'나홀로 나무 (버스 약 15분)', coord:[43.4295,142.4642], mode:'버스' },
       { name:'닝구르 테라스 (버스 약 20분)', coord:[43.3427,142.3819], mode:'버스' },
       { name:'삿포로역 복귀 (버스투어 약 2시간)', coord:[43.0686,141.3508] },
     ], recs:[
-      { name:'비에이 마을 우동/카레', desc:'투어 중 자유식, 추위에 든든한 한 그릇', price:[{label:'우동/카레',yen:1000}], photo:'🍛' },
-      { name:'닝구르 테라스 목공예 공방', desc:'통나무집 공방에서 수공예품 구경 · 구매', price:[{label:'소품',yen:500},{label:'목공예품',yen:3000}], photo:'🪵' },
+      { name:'비에이 마을 우동/카레', desc:'투어 중 자유식, 추위에 든든한 한 그릇', price:[{label:'우동/카레',yen:1000}], photo:'🍛',
+        menuJa:[{ko:'우동',ja:'うどん'},{ko:'카레',ja:'カレー'},{ko:'카레우동',ja:'カレーうどん'}] },
+      { name:'닝구르 테라스 목공예 공방', desc:'통나무집 공방에서 수공예품 구경 · 구매', price:[{label:'소품',yen:500},{label:'목공예품',yen:3000}], photo:'🪵',
+        photoTip:'통나무 공방 외관과 나무 사이로 비치는 조명이 저녁 시간대 포토존으로 유명해요' },
     ]},
   { title:"오타루 당일치기 · 삿포로 미식 저녁", stops:[
-      { name:'삿포로역', coord:[43.0686,141.3508], mode:'기차' },
+      { name:'삿포로역', coord:[43.0686,141.3508], mode:'기차', transit:'JR 하코다테 본선(函館本線) · 삿포로역 승차 → 오타루역 하차, 약 32~35분', liveUrl:'https://www3.jrhokkaido.co.jp/webunkou/area_spo.html', liveLabel:'JR 실시간 운행정보' },
       { name:'오타루 운하 (전철 추천 35분 · 택시 추천 45분)', coord:[43.1998,140.9995], mode:'도보' },
       { name:'오타루 유리공방 거리 (사카이마치) (도보 약 5분)', coord:[43.1975,140.9975], mode:'도보' },
       { name:'오타루 스시거리 (도보 약 5분)', coord:[43.1963,140.9945], mode:'도보' },
-      { name:'삿포로역 복귀 (전철 추천 35분 · 택시 추천 45분)', coord:[43.0686,141.3508], mode:'기차' },
-      { name:'모리히코 (마루야마 본점) 카페 (전철 추천 15분 · 택시 추천 12분)', coord:[43.0600,141.3160], mode:'택시' },
+      { name:'삿포로역 복귀 (전철 추천 35분 · 택시 추천 45분)', coord:[43.0686,141.3508], mode:'기차', transit:'JR 하코다테 본선(函館本線) · 오타루역 승차 → 삿포로역 하차', liveUrl:'https://www3.jrhokkaido.co.jp/webunkou/area_spo.html', liveLabel:'JR 실시간 운행정보' },
+      { name:'모리히코 (마루야마 본점) 카페 (전철 추천 15분 · 택시 추천 12분)', coord:[43.0600,141.3160], mode:'택시', transit:'또는 지하철 도자이선(東西線·주황) 오도리역에서 난보쿠선→도자이선 환승 → 마루야마코엔역 하차', liveUrl:'https://www.city.sapporo.jp/st/index.html', liveLabel:'지하철 실시간 운행정보', taxiNote:true },
       { name:'삿포로 라멘 하가쿠레 저녁 (택시 추천 15분)', coord:[43.0550,141.3545] },
     ], recs:[
-      { name:'Holiday', desc:'오타루 다녀온 뒤 삿포로에서 들르기 좋은 감성 카페', price:[{label:'커피·디저트',yen:700}], photo:'☕' },
-      { name:'파르페 커피 술 사토', desc:'낮엔 카페, 밤엔 바로 변신하는 독특한 공간', price:[{label:'파르페',yen:1200}], photo:'🍨' },
+      { name:'Holiday', desc:'오타루 다녀온 뒤 삿포로에서 들르기 좋은 감성 카페', price:[{label:'커피·디저트',yen:700}], photo:'☕',
+        menuJa:[{ko:'커피',ja:'コーヒー'},{ko:'디저트',ja:'デザート'}] },
+      { name:'파르페 커피 술 사토', desc:'낮엔 카페, 밤엔 바로 변신하는 독특한 공간', price:[{label:'파르페',yen:1200}], photo:'🍨',
+        menuJa:[{ko:'파르페',ja:'パフェ'},{ko:'커피',ja:'コーヒー'}] },
     ]},
   { title:'삿포로 미식 마무리 · 쇼핑 · 출국', stops:[
       { name:'바리스타트 커피 (아침)', coord:[43.0615,141.3480], mode:'도보' },
-      { name:'삿포로 맥주박물관 (전철 추천 12분 · 택시 추천 10분)', coord:[43.0733,141.3705], mode:'택시' },
-      { name:'Curry Shop S (점심 수프카레) (택시 추천 12분)', coord:[43.0620,141.3540], mode:'택시' },
+      { name:'삿포로 맥주박물관 (전철 추천 12분 · 택시 추천 10분)', coord:[43.0733,141.3705], mode:'택시', transit:'또는 지하철 도호선(東豊線·하늘색) 삿포로역 → 히가시쿠야쿠쇼마에역 하차, 도보 약 10분', liveUrl:'https://www.city.sapporo.jp/st/index.html', liveLabel:'지하철 실시간 운행정보', taxiNote:true },
+      { name:'Curry Shop S (점심 수프카레) (택시 추천 12분)', coord:[43.0620,141.3540], mode:'택시', taxiNote:true },
       { name:'다누키코지 상점가 쇼핑 (도보 약 10분)', coord:[43.0575,141.3555], mode:'도보' },
-      { name:'지토세쓰루 술 뮤지엄 (전철 추천 35분 · 택시 추천 40분)', coord:[42.8188,141.6566], mode:'기차' },
+      { name:'지토세쓰루 술 뮤지엄 (전철 추천 35분 · 택시 추천 40분)', coord:[42.8188,141.6566], mode:'기차', transit:'JR 치토세선(千歳線) 이용 (정확한 승하차역은 방문 전 재확인 권장)', liveUrl:'https://www3.jrhokkaido.co.jp/webunkou/area_spo.html', liveLabel:'JR 실시간 운행정보' },
       { name:'신치토세공항 이동 · 출국 (도보 약 10분)', coord:[42.7752,141.6923], mode:'도보' },
     ], recs:[
-      { name:'삿포로 라멘 리퍼블릭 (ESTA 10층)', desc:'삿포로역 근처, 여러 라멘 명가가 모인 곳', price:[{label:'라멘',yen:900}], photo:'🍜' },
+      { name:'삿포로 라멘 리퍼블릭 (ESTA 10층)', desc:'삿포로역 근처, 여러 라멘 명가가 모인 곳', price:[{label:'라멘',yen:900}], photo:'🍜',
+        menuJa:[{ko:'라멘',ja:'ラーメン'},{ko:'미소/쇼유/시오',ja:'味噌／醤油／塩'}] },
       { name:'피푸루 피푸', desc:'여유 있으면 들르기 좋은 소품샵 겸 카페', price:[{label:'소품',yen:500}], photo:'🎁' },
     ]},
 ];
 
-// ── 인천 → 신치토세 비행 애니메이션 (Leaflet, 무료 타일) ──
-function bezierPoints(p0, p1, steps){
-  const midLat = (p0[0]+p1[0])/2 + 3;
+// ── 인천 → 신치토세 비행 애니메이션 (MapTiler SDK, 한국어 지명) ──
+maptilersdk.config.apiKey = 'NdcsczDRtZjgKtEZHDGI';
+const toLngLat = c => [c[1], c[0]]; // [lat,lng] → [lng,lat] (MapTiler/MapLibre 좌표 순서)
+
+function bezierPoints(p0, p1, steps, curveOffset){
+  const off = curveOffset===undefined ? 3 : curveOffset;
+  const midLat = (p0[0]+p1[0])/2 + off;
   const midLng = (p0[1]+p1[1])/2;
   const pts = [];
   for(let i=0;i<=steps;i++){
@@ -725,99 +881,148 @@ function bezierPoints(p0, p1, steps){
   }
   return pts;
 }
+
+function emojiMarkerEl(html){
+  const el = document.createElement('div');
+  el.className = 'maptiler-emoji-marker';
+  el.innerHTML = html;
+  return el;
+}
+
+function lineGeoJSON(coordsLatLng){
+  return { type:'Feature', geometry:{ type:'LineString', coordinates: coordsLatLng.map(toLngLat) } };
+}
+
 (function initFlightMap(){
   const ICN = [37.4602,126.4407], CTS = [42.7752,141.6923];
-  const flightMap = L.map('flightMap', {zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false}).setView([40.0,134.0], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(flightMap);
-  const path = bezierPoints(ICN, CTS, 60);
-  L.polyline(path, {color:'#0071E3', weight:2, dashArray:'4,6'}).addTo(flightMap);
-  L.marker(ICN, {icon:L.divIcon({className:'', html:'🇰🇷', iconSize:[20,20]})}).addTo(flightMap);
-  L.marker(CTS, {icon:L.divIcon({className:'', html:'🇯🇵', iconSize:[20,20]})}).addTo(flightMap);
-  const planeMarker = L.marker(path[0], {icon:L.divIcon({className:'', html:'✈️', iconSize:[22,22]})}).addTo(flightMap);
+  const flightMap = new maptilersdk.Map({
+    container: 'flightMap', style: maptilersdk.MapStyle.STREETS, language: 'ko',
+    center: toLngLat([40.0,134.0]), zoom: 3.3, interactive: false, attributionControl: false,
+  });
+
+  const pathOut = bezierPoints(ICN, CTS, 60, 3);
+  const pathIn = bezierPoints(CTS, ICN, 60, -3);
+  const planeOut = new maptilersdk.Marker({element: emojiMarkerEl('✈️')}).setLngLat(toLngLat(pathOut[0])).addTo(flightMap);
+  const planeIn = new maptilersdk.Marker({element: emojiMarkerEl('<span style="display:inline-block;transform:scaleX(-1)">✈️</span>')}).setLngLat(toLngLat(pathIn[0])).addTo(flightMap);
+
+  flightMap.on('load', ()=>{
+    flightMap.addSource('flight-out', {type:'geojson', data: lineGeoJSON(pathOut)});
+    flightMap.addLayer({id:'flight-out', type:'line', source:'flight-out', paint:{'line-color':'#0071E3','line-width':2,'line-dasharray':[2,2]}});
+    flightMap.addSource('flight-in', {type:'geojson', data: lineGeoJSON(pathIn)});
+    flightMap.addLayer({id:'flight-in', type:'line', source:'flight-in', paint:{'line-color':'#FF2D55','line-width':2,'line-dasharray':[2,2]}});
+  });
+  new maptilersdk.Marker({element: emojiMarkerEl('🇰🇷')}).setLngLat(toLngLat(ICN)).addTo(flightMap);
+  new maptilersdk.Marker({element: emojiMarkerEl('🇯🇵')}).setLngLat(toLngLat(CTS)).addTo(flightMap);
+
   let step = 0;
   setInterval(()=>{
-    step = (step+1) % path.length;
-    planeMarker.setLatLng(path[step]);
+    step = (step+1) % pathOut.length;
+    planeOut.setLngLat(toLngLat(pathOut[step]));
+    planeIn.setLngLat(toLngLat(pathIn[step]));
   }, 60);
 })();
 
 // ── 일자별 동선 지도 ──
 let dayMap = null;
-let dayLayerGroup = null;
+let dayMarkers = [];
+let daySourceIds = [];
 let routeAnimFrame = null;
-function renderDayMap(dayIndex){
+let dayRenderToken = 0;
+
+function clearDayLayers(){
+  dayMarkers.forEach(m=>m.remove());
+  dayMarkers = [];
+  daySourceIds.forEach(id=>{
+    if(dayMap.getLayer(id)) dayMap.removeLayer(id);
+    if(dayMap.getSource(id)) dayMap.removeSource(id);
+  });
+  daySourceIds = [];
+}
+
+function populateDay(dayIndex){
   const day = SAPPORO_DAYS[dayIndex];
-  if(!dayMap){
-    dayMap = L.map('dayMap').setView(day.stops[0].coord, 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'© OpenStreetMap'}).addTo(dayMap);
-  }
-  if(dayLayerGroup) dayLayerGroup.remove();
-  dayLayerGroup = L.layerGroup().addTo(dayMap);
+  const myToken = ++dayRenderToken;
+  clearDayLayers();
 
   const modeColor = {'기차':'#0071E3','버스':'#0071E3','도보':'#0C7A3D','택시':'#E8890C'};
-  const modeDash = {'기차':'6,4','버스':'6,4','택시':'2,6'};
+  const modeDash = {'기차':[6,4],'버스':[6,4],'택시':[2,6]};
   const modeIcon = {'기차':'🚆','버스':'🚌','도보':'🚶','택시':'🚕'};
 
-  const bounds = [];
+  let minLat=90,maxLat=-90,minLng=180,maxLng=-180;
   day.stops.forEach((s,i)=>{
-    bounds.push(s.coord);
-    L.marker(s.coord).bindPopup(`<b>${i+1}. ${s.name}</b>`).addTo(dayLayerGroup);
+    minLat=Math.min(minLat,s.coord[0]); maxLat=Math.max(maxLat,s.coord[0]);
+    minLng=Math.min(minLng,s.coord[1]); maxLng=Math.max(maxLng,s.coord[1]);
+
+    const popupHtml = `<b>${i+1}. ${s.name}</b>` + (s.transit ? `<br><span style="color:#0071E3;font-size:12px">🚃 ${s.transit}</span>` : '');
+    const marker = new maptilersdk.Marker({color:'#0071E3'}).setLngLat(toLngLat(s.coord))
+      .setPopup(new maptilersdk.Popup({offset:20}).setHTML(popupHtml))
+      .addTo(dayMap);
+    dayMarkers.push(marker);
+
     if(i < day.stops.length-1){
       const mode = s.mode || '도보';
-      const line = L.polyline([s.coord, day.stops[i+1].coord], {
-        color: modeColor[mode] || '#6E6E73',
-        weight: 3,
-        dashArray: modeDash[mode] || null,
-      }).addTo(dayLayerGroup);
+      const lineId = 'day-line-'+i;
+      dayMap.addSource(lineId, {type:'geojson', data: lineGeoJSON([s.coord, day.stops[i+1].coord])});
+      dayMap.addLayer({id:lineId, type:'line', source:lineId, paint:{
+        'line-color': modeColor[mode] || '#6E6E73', 'line-width':3,
+        'line-dasharray': modeDash[mode] || [1,0],
+      }});
+      daySourceIds.push(lineId);
 
       const nextName = day.stops[i+1].name;
       const timeMatch = nextName.match(/\(([^)]+)\)/);
       if(timeMatch){
-        line.bindTooltip(timeMatch[1], {permanent:true, direction:'center', className:'route-time-label'});
+        const mid = [(s.coord[0]+day.stops[i+1].coord[0])/2, (s.coord[1]+day.stops[i+1].coord[1])/2];
+        const labelEl = document.createElement('div');
+        labelEl.className = 'route-time-label';
+        labelEl.textContent = timeMatch[1];
+        const labelMarker = new maptilersdk.Marker({element: labelEl}).setLngLat(toLngLat(mid)).addTo(dayMap);
+        dayMarkers.push(labelMarker);
       }
     }
   });
-  dayMap.fitBounds(bounds, {padding:[24,24]});
 
-  // 이전에 돌고 있던 애니메이션 루프가 있으면 확실히 정리
+  dayMap.fitBounds([[minLng,minLat],[maxLng,maxLat]], {padding:40, animate:false});
+  setTimeout(()=>{
+    dayMap.resize();
+    if(dayMap.getZoom() < 13) dayMap.setZoom(13);
+  }, 50);
+
   if(routeAnimFrame) cancelAnimationFrame(routeAnimFrame);
 
   const legs = [];
   for(let i=0;i<day.stops.length-1;i++){
-    legs.push({
-      from: day.stops[i].coord,
-      to: day.stops[i+1].coord,
-      mode: day.stops[i].mode || '도보',
-    });
+    const from = day.stops[i].coord, to = day.stops[i+1].coord;
+    const distKm = haversineKm(from, to);
+    const dur = Math.min(40000, 8000 + distKm * 400); // 거리가 멀수록 오래 걸리게, 너무 짧지도 길지도 않게 클램프
+    legs.push({ from, to, mode: day.stops[i].mode || '도보', durMs: dur });
   }
 
   if(legs.length){
-    const walker = L.marker(legs[0].from, {
-      icon: L.divIcon({className:'', html:modeIcon[legs[0].mode] || '🚶', iconSize:[26,26]})
-    }).addTo(dayLayerGroup);
+    const walkerEl = emojiMarkerEl(modeIcon[legs[0].mode] || '🚶');
+    const walker = new maptilersdk.Marker({element: walkerEl}).setLngLat(toLngLat(legs[0].from)).addTo(dayMap);
+    dayMarkers.push(walker);
 
-    const msPerLeg = 5000; // 구간 하나를 이동하는 데 걸리는 애니메이션 시간(ms)
     let legIndex = 0;
     let legStart = performance.now();
     let lastMode = null;
 
     function step(now){
-      // 지도가 다른 날짜로 전환되지 않았는지 확인 (레이어가 바뀌었으면 이 루프는 스스로 멈춤)
-      if(!dayMap.hasLayer(walker)){ return; }
-
+      if(myToken !== dayRenderToken) return; // 다른 날짜로 전환됐으면 이 루프는 스스로 멈춤
       let elapsed = now - legStart;
-      if(elapsed >= msPerLeg){
-        legIndex = (legIndex + 1) % legs.length; // 마지막 구간 다음엔 처음 구간으로 무한 반복
+      let leg = legs[legIndex];
+      if(elapsed >= leg.durMs){
+        legIndex = (legIndex + 1) % legs.length;
         legStart = now;
         elapsed = 0;
+        leg = legs[legIndex];
       }
-      const leg = legs[legIndex];
-      const p = elapsed / msPerLeg;
+      const p = elapsed / leg.durMs;
       const lat = leg.from[0] + (leg.to[0] - leg.from[0]) * p;
       const lng = leg.from[1] + (leg.to[1] - leg.from[1]) * p;
-      walker.setLatLng([lat, lng]);
+      walker.setLngLat(toLngLat([lat, lng]));
       if(leg.mode !== lastMode){
-        walker.setIcon(L.divIcon({className:'', html:modeIcon[leg.mode] || '🚶', iconSize:[26,26]}));
+        walkerEl.innerHTML = modeIcon[leg.mode] || '🚶';
         lastMode = leg.mode;
       }
       routeAnimFrame = requestAnimationFrame(step);
@@ -826,6 +1031,20 @@ function renderDayMap(dayIndex){
   }
 }
 
+function renderDayMap(dayIndex){
+  const day = SAPPORO_DAYS[dayIndex];
+  if(!dayMap){
+    dayMap = new maptilersdk.Map({
+      container: 'dayMap', style: maptilersdk.MapStyle.STREETS, language: 'ko',
+      center: toLngLat(day.stops[0].coord), zoom: 11,
+    });
+    dayMap.on('load', ()=>populateDay(dayIndex));
+  }else{
+    populateDay(dayIndex);
+  }
+}
+
+
 function renderDayInfo(dayIndex){
   const day = SAPPORO_DAYS[dayIndex];
   document.querySelectorAll('#dayToggle .duration-btn').forEach((b,i)=>b.classList.toggle('active', i===dayIndex));
@@ -833,9 +1052,14 @@ function renderDayInfo(dayIndex){
     <div class="day-row">
       <div class="day-tag">DAY ${dayIndex+1}</div>
       <div class="day-body"><h3>${day.title}</h3>
-        <div class="stop-list">${day.stops.map(s=>`
-          <span class="stop">${s.name}<br><small style="color:var(--gray);font-weight:400">${hotelBadge(s.coord)}</small></span>
-        `).join('')}</div>
+        <div class="stop-list">${day.stops.map(s=>{
+          const cleanName = s.name.replace(/\s*\([^)]*\)\s*$/, '');
+          const mapUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(cleanName + ' 삿포로');
+          const transitHtml = s.transit ? `<br><small style="color:var(--blue);font-weight:500">🚃 ${s.transit}</small>` : '';
+          const liveHtml = s.liveUrl ? `<br><a href="${s.liveUrl}" target="_blank" rel="noopener" style="font-size:.68rem;color:#D93025;text-decoration:none;font-weight:600">🔴 ${s.liveLabel} 실시간 보기</a>` : '';
+          const taxiHtml = s.taxiNote ? `<br><a href="https://go.mo-t.com/" target="_blank" rel="noopener" style="font-size:.68rem;color:#D93025;text-decoration:none;font-weight:600">🔴 택시 실시간 호출('GO' 앱)</a>` : '';
+          return `<span class="stop">${s.name}<br><small style="color:var(--gray);font-weight:400">${hotelBadge(s.coord)}</small>${transitHtml}${liveHtml}${taxiHtml}<br><a href="${mapUrl}" target="_blank" rel="noopener" style="font-size:.68rem;color:var(--blue);text-decoration:none">📍 사진 보기</a></span>`;
+        }).join('')}</div>
       </div>
     </div>`;
   const hotelCard = `
@@ -848,7 +1072,14 @@ function renderDayInfo(dayIndex){
         </span>
       </div>
     </div>`;
-  const recCards = day.recs.map(r => `
+  const recCards = day.recs.map(r => {
+    const menuHtml = r.menuJa ? `
+        <div style="margin-top:8px">
+          ${r.menuJa.map(m=>`<div style="display:flex;justify-content:space-between;font-size:.76rem;padding:2px 0"><span>${m.ko}</span><span style="color:var(--gray)">${m.ja}</span></div>`).join('')}
+        </div>` : '';
+    const tipHtml = r.photoTip ? `<div style="margin-top:8px;font-size:.75rem;color:var(--blue)">📷 ${r.photoTip}</div>` : '';
+    const mapUrl = 'https://www.google.com/maps/search/' + encodeURIComponent(r.name + ' 삿포로');
+    return `
     <details style="padding:8px 0;border-bottom:1px solid var(--line)">
       <summary style="cursor:pointer;display:flex;align-items:center;gap:10px">
         <span style="width:36px;height:36px;border-radius:10px;background:#F5F5F7;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">${r.photo||'📍'}</span>
@@ -857,8 +1088,14 @@ function renderDayInfo(dayIndex){
           <div style="font-size:.75rem;color:var(--gray)">${formatPriceList(r.price)}</div>
         </span>
       </summary>
-      <div style="font-size:.78rem;color:var(--gray);margin-top:6px;padding-left:46px">${r.desc}</div>
-    </details>`).join('');
+      <div style="font-size:.78rem;color:var(--gray);margin-top:6px;padding-left:46px">
+        ${r.desc}
+        ${menuHtml}
+        ${tipHtml}
+        <a href="${mapUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:.75rem;font-weight:600;color:var(--blue);text-decoration:none">📍 구글맵에서 실제 사진·후기 보기 →</a>
+      </div>
+    </details>`;
+  }).join('');
   document.getElementById('sideList').innerHTML = hotelCard + recCards;
   renderDayMap(dayIndex);
 }
@@ -967,7 +1204,7 @@ loadFlightStatus('outbound');
 // ── 예상 경비 계산기 ──
 const BUDGET_ITEMS = [
   { key:'flight', label:'항공권 (왕복, 1인)', default:350000, perPerson:true },
-  { key:'hotel', label:'숙박 (란도르 호텔 헤리티지, 3박)', default:519000, perPerson:false },
+  { key:'hotel', label:'숙박 (그란벨 호텔 스스키노, 3박)', default:294000, perPerson:false },
   { key:'tour', label:'비에이·후라노 근교투어 (1인)', default:100000, perPerson:true },
   { key:'transport', label:'시내교통 + 오타루 왕복 (1인)', default:30000, perPerson:true },
   { key:'food', label:'식비 (1인, 4일)', default:200000, perPerson:true },
@@ -1030,12 +1267,6 @@ const MEGA_CONTENT = {
     <div class="mega-col" style="grid-column: span 2">
       <h4>여행 준비</h4>
       <div class="mega-desc">도시를 고르면 항공권 시세, 현지 날씨, 2박3일/3박4일 인기 일정이 자동으로 채워져요.</div>
-    </div>
-  `,
-  realestate: `
-    <div class="mega-col" style="grid-column: span 4">
-      <h4>부동산</h4>
-      <div class="mega-soon">준비 중이에요. 곧 매물/시세 정보가 이 자리에 채워질 예정입니다.</div>
     </div>
   `,
   photos: `
