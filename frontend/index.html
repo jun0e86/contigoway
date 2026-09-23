@@ -224,7 +224,7 @@
     <div class="nav-links" id="navLinks">
       <span class="nav-item" id="annAdminToggle" style="display:none" onclick="toggleAnnAdminPanel()">📢 공지관리</span>
       <span class="nav-item active" data-menu="travel">여행</span>
-      <span class="nav-item" data-menu="photos">사진모음</span>
+      <a href="/photos.html">사진모음</a>
       <a href="/diary.html">일기</a>
       <a href="/todo.html">TODO</a>
       <a href="/legal-search.html">법령검색</a>
@@ -476,7 +476,6 @@
   <div class="other-sectors">
     <h2>다른 섹터는 곧 채워질 예정이에요</h2>
     <div class="other-grid">
-      <div class="other-card">사진모음</div>
     </div>
   </div>
 </main>
@@ -537,7 +536,7 @@ const FEATURE_PROGRESS = [
   {name:'커플 스케줄 캘린더 (애플/구글 캘린더 연동)', done:true},
   {name:'비밀일기 (PIN·사진/동영상·댓글·인사말·날씨)', done:true},
   {name:'부동산 섹션', done:false},
-  {name:'사진모음 섹션', done:false},
+  {name:'사진모음 섹션', done:true},
   {name:'SNS 로그인 (카카오/네이버/애플/페이스북)', done:false},
 ];
 (function renderProgress(){
@@ -1267,12 +1266,6 @@ const MEGA_CONTENT = {
     <div class="mega-col" style="grid-column: span 2">
       <h4>여행 준비</h4>
       <div class="mega-desc">도시를 고르면 항공권 시세, 현지 날씨, 2박3일/3박4일 인기 일정이 자동으로 채워져요.</div>
-    </div>
-  `,
-  photos: `
-    <div class="mega-col" style="grid-column: span 4">
-      <h4>사진모음</h4>
-      <div class="mega-soon">준비 중이에요. 함께 찍은 사진들을 모아볼 수 있는 공간이 될 예정입니다.</div>
     </div>
   `,
   schedule: `

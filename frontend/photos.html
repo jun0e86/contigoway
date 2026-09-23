@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contigoway · 사진모음</title>
+<style>
+  :root{
+    --black:#1D1D1F;--gray:#6E6E73;--gray-light:#86868B;--blue:#0071E3;--pink:#FF2D55;
+    --bg:#FFFFFF;--panel:#F5F5F7;--line:#D2D2D7;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:var(--bg);color:var(--black);
+    font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  nav{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);display:flex;justify-content:center;
+  }
+  .nav-inner{width:100%;max-width:980px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;height:48px;font-size:.82rem;font-weight:500}
+  .nav-links{display:flex;gap:24px;align-items:center;color:var(--gray)}
+  .nav-links a{color:var(--gray);text-decoration:none}
+  .nav-links .active{color:var(--black)}
+  .nav-links .greet{color:var(--black);font-weight:600}
+  .logout-link{color:var(--blue);cursor:pointer}
+
+  main{max-width:900px;margin:0 auto;padding:0 24px 100px}
+
+  .page-header{display:flex;justify-content:space-between;align-items:center;padding:36px 0 18px}
+  .page-header h1{font-size:1.5rem;font-weight:700}
+  .new-btn{background:var(--black);color:#fff;border:none;border-radius:980px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+  .thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--panel);cursor:pointer}
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .vid-badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:700;padding:2px 6px;border-radius:6px}
+  .thumb .occ-badge{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font-size:.7rem;padding:14px 8px 6px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .empty-msg{padding:60px 0;text-align:center;color:var(--gray);font-size:.9rem}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow-y:auto;padding:40px 16px}
+  .overlay.open{display:flex}
+  .sheet{background:#fff;border-radius:22px;max-width:480px;width:100%;padding:26px;margin-top:20px}
+  .sheet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .sheet-header h2{font-size:1.05rem;font-weight:700}
+  .sheet-close{cursor:pointer;color:var(--gray);font-size:1.3rem;background:none;border:none}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.78rem;color:var(--gray);margin-bottom:5px;font-weight:600}
+  .field input, .field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:.88rem;outline:none;font-family:inherit}
+  .field textarea{min-height:60px;resize:vertical}
+  .field input:focus, .field textarea:focus{border-color:var(--blue)}
+
+  .preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;margin:10px 0}
+  .preview-item{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--panel)}
+  .preview-item img,.preview-item video{width:100%;height:100%;object-fit:cover}
+  .preview-item .remove{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer}
+  .preview-item .no-preview{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+
+  .btn-primary{width:100%;padding:12px;background:var(--black);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer}
+  .btn-primary:disabled{opacity:.5;cursor:default}
+  .btn-secondary{padding:10px 14px;background:var(--panel);color:var(--black);border:none;border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer}
+  .btn-danger{padding:10px 14px;background:#fff;color:#D93025;border:1px solid #F3C0C0;border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer}
+
+  .detail-media img,.detail-media video{width:100%;border-radius:14px;display:block;max-height:60vh;object-fit:contain;background:#000}
+  .meta-row{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:.85rem;color:var(--black)}
+  .meta-row .ico{width:20px;flex-shrink:0;text-align:center}
+  .meta-row .sub{color:var(--gray);font-size:.78rem}
+  .detail-actions{display:flex;gap:8px;margin-top:18px}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="/index.html" class="brand" style="text-decoration:none;color:inherit;font-weight:600;display:flex;align-items:center;gap:8px">
+      <svg width="26" height="26" viewBox="0 0 34 34" aria-hidden="true" style="flex-shrink:0">
+        <rect width="34" height="34" rx="9" fill="#0071E3"/>
+        <path d="M9 24 C9 24 11 14 17 12 C23 10 25 14 25 14" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M22.2 11.2 c0-1.3 1-2 2-2 s2 0.7 2 2 c0 1.6 -2 3.2 -2 3.2 s-2 -1.6 -2 -3.2 z" fill="#fff"/>
+      </svg>
+      <span>contigo<span style="color:#0071E3">way</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="/index.html?ann=1" id="annNavLink" style="display:none">📢 공지관리</a>
+      <a href="/index.html">여행</a>
+      <span class="active">사진모음</span>
+      <a href="/diary.html">일기</a>
+      <a href="/todo.html">TODO</a>
+      <a href="/legal-search.html">법령검색</a>
+      <a href="/schedule.html">스케줄</a>
+      <a href="/users.html" id="usersNavLink" style="display:none">사용자 관리</a>
+      <span class="greet" id="greetName"></span>
+      <span class="logout-link" onclick="logout()">로그아웃</span>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>사진모음</h1>
+    <button class="new-btn" onclick="openUploader()">+ 업로드</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <div id="emptyMsg" class="empty-msg" style="display:none">아직 업로드된 사진이 없어요.</div>
+</main>
+
+<!-- 업로드 -->
+<div class="overlay" id="uploadOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>사진 업로드</h2>
+      <button class="sheet-close" onclick="closeUploader()">✕</button>
+    </div>
+    <div class="field">
+      <label>사진 / 동영상 (JPEG, HEIC, PNG, MOV — 여러 개 선택 가능)</label>
+      <input type="file" id="fFiles" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.mov" onchange="onFilesPicked(event)">
+    </div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div class="field">
+      <label>무슨 일로 찍었나요? (예: 생일, 오타루 여행, 그냥 일상)</label>
+      <input type="text" id="fOccasion" maxlength="500" placeholder="선택한 사진 전체에 함께 적용됩니다">
+    </div>
+    <button class="btn-primary" id="uploadBtn" onclick="submitUpload()">업로드</button>
+  </div>
+</div>
+
+<!-- 상세 -->
+<div class="overlay" id="detailOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>사진 상세</h2>
+      <button class="sheet-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="detail-media" id="detailMedia"></div>
+    <div id="detailMeta"></div>
+    <div class="detail-actions" id="detailActions"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+const token = localStorage.getItem('token');
+if(!token){ location.href = '/login.html'; }
+
+function logout(){ localStorage.clear(); location.href = '/login.html'; }
+
+async function authFetch(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, {'Authorization':'Bearer '+token});
+  const r = await fetch(API + path, opts);
+  if(r.status === 401){ logout(); throw new Error('unauthorized'); }
+  return r;
+}
+
+let me = null;
+(async function init(){
+  try{
+    const r = await authFetch('/auth/me');
+    me = await r.json();
+    document.getElementById('greetName').textContent = me.full_name + '님';
+    if(me.role === 'admin'){
+      document.getElementById('usersNavLink').style.display = 'inline';
+      document.getElementById('annNavLink').style.display = 'inline';
+    }
+  }catch(e){}
+  await loadGrid();
+})();
+
+// WMO 날씨코드 -> 이모지/설명 (Open-Meteo 기준, diary와 동일 체계)
+const WEATHER_MAP = {
+  0:['☀️','맑음'], 1:['🌤️','대체로 맑음'], 2:['⛅','부분 흐림'], 3:['☁️','흐림'],
+  45:['🌫️','안개'], 48:['🌫️','안개'], 51:['🌦️','이슬비'], 53:['🌦️','이슬비'], 55:['🌦️','이슬비'],
+  61:['🌧️','비'], 63:['🌧️','비'], 65:['🌧️','강한 비'], 71:['🌨️','눈'], 73:['🌨️','눈'], 75:['❄️','강한 눈'],
+  80:['🌦️','소나기'], 81:['🌦️','소나기'], 82:['⛈️','강한 소나기'], 95:['⛈️','뇌우'], 96:['⛈️','뇌우'], 99:['⛈️','뇌우'],
+};
+function weatherLabel(code, tmax, tmin){
+  if(code === null || code === undefined) return null;
+  const [emoji, desc] = WEATHER_MAP[code] || ['🌡️','-'];
+  const temp = (tmax !== null && tmin !== null) ? `${tmin}° ~ ${tmax}°` : '';
+  return `${emoji} ${desc}${temp ? ' · ' + temp : ''}`;
+}
+function fmtDate(iso){
+  if(!iso) return null;
+  const d = new Date(iso);
+  return d.toLocaleString('ko-KR', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function fileUrl(relPath){ return '/uploads/' + relPath; }
+
+let allPhotos = [];
+async function loadGrid(){
+  const r = await authFetch('/photos?limit=200');
+  allPhotos = await r.json();
+  const grid = document.getElementById('grid');
+  document.getElementById('emptyMsg').style.display = allPhotos.length ? 'none' : 'block';
+  grid.innerHTML = allPhotos.map(p => {
+    const thumbSrc = fileUrl(p.thumbnail_path || p.file_path);
+    const inner = p.media_type === 'video'
+      ? `<video src="${fileUrl(p.file_path)}" muted></video><span class="vid-badge">MOV</span>`
+      : `<img src="${thumbSrc}" loading="lazy">`;
+    const occ = p.occasion ? `<span class="occ-badge">${escapeHtml(p.occasion)}</span>` : '';
+    return `<div class="thumb" onclick="openDetail(${p.id})">${inner}${occ}</div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── 업로드 ──
+let selectedFiles = [];
+function openUploader(){
+  selectedFiles = [];
+  document.getElementById('fFiles').value = '';
+  document.getElementById('fOccasion').value = '';
+  renderPreviews();
+  document.getElementById('uploadOverlay').classList.add('open');
+}
+function closeUploader(){ document.getElementById('uploadOverlay').classList.remove('open'); }
+
+function onFilesPicked(e){
+  const files = Array.from(e.target.files || []);
+  for(const file of files){
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const isVideo = ext === 'mov';
+    const url = (ext === 'heic' || ext === 'heif') ? null : URL.createObjectURL(file);
+    selectedFiles.push({file, ext, isVideo, url});
+  }
+  renderPreviews();
+}
+function renderPreviews(){
+  document.getElementById('previewGrid').innerHTML = selectedFiles.map((f, i) => {
+    let inner;
+    if(f.isVideo) inner = `<video src="${f.url}"></video>`;
+    else if(f.url) inner = `<img src="${f.url}">`;
+    else inner = `<div class="no-preview">🖼️</div>`;
+    return `<div class="preview-item">${inner}<button type="button" class="remove" onclick="removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+function removeFile(i){ selectedFiles.splice(i,1); renderPreviews(); }
+
+async function submitUpload(){
+  if(!selectedFiles.length){ alert('사진 또는 동영상을 선택해주세요'); return; }
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.textContent = '업로드 중... (촬영 위치·날씨 조회 포함, 조금 걸릴 수 있어요)';
+  try{
+    const fd = new FormData();
+    selectedFiles.forEach(f => fd.append('files', f.file));
+    const occasion = document.getElementById('fOccasion').value.trim();
+    if(occasion) fd.append('occasion', occasion);
+    const r = await authFetch('/photos', {method:'POST', body: fd});
+    if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail || '업로드에 실패했습니다'); return; }
+    closeUploader();
+    await loadGrid();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '업로드';
+  }
+}
+
+// ── 상세 ──
+function openDetail(id){
+  const p = allPhotos.find(x => x.id === id);
+  if(!p) return;
+  const media = p.media_type === 'video'
+    ? `<video src="${fileUrl(p.file_path)}" controls></video>`
+    : `<img src="${fileUrl(p.file_path)}">`;
+  document.getElementById('detailMedia').innerHTML = media;
+
+  const rows = [];
+  const taken = fmtDate(p.taken_at);
+  if(taken) rows.push(['🗓️', taken]);
+  if(p.location_name) rows.push(['📍', p.location_name, (p.latitude && p.longitude) ? `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}` : null]);
+  const w = weatherLabel(p.weather_code, p.weather_temp_max, p.weather_temp_min);
+  if(w) rows.push(['🌡️', w]);
+  if(p.occasion) rows.push(['🏷️', p.occasion]);
+  if(p.uploader_name) rows.push(['👤', p.uploader_name + '님이 업로드']);
+
+  document.getElementById('detailMeta').innerHTML = rows.map(([ico, main, sub]) => `
+    <div class="meta-row"><div class="ico">${ico}</div><div><div>${escapeHtml(main)}</div>${sub ? `<div class="sub">${escapeHtml(sub)}</div>` : ''}</div></div>
+  `).join('') || '<div class="meta-row"><div class="ico">ℹ️</div><div>추가 정보가 없어요.</div></div>';
+
+  const canManage = me && (me.role === 'admin' || p.uploader_id === me.id);
+  document.getElementById('detailActions').innerHTML = canManage
+    ? `<button class="btn-secondary" onclick="editOccasion(${p.id})">태그 수정</button>
+       <button class="btn-danger" onclick="deletePhoto(${p.id})">삭제</button>`
+    : '';
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+async function editOccasion(id){
+  const p = allPhotos.find(x => x.id === id);
+  const next = prompt('태그/메모를 입력하세요', p.occasion || '');
+  if(next === null) return;
+  const r = await authFetch(`/photos/${id}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({occasion: next}),
+  });
+  if(!r.ok){ alert('수정에 실패했습니다'); return; }
+  closeDetail();
+  await loadGrid();
+}
+
+async function deletePhoto(id){
+  if(!confirm('이 사진을 삭제할까요? 되돌릴 수 없습니다.')) return;
+  const r = await authFetch(`/photos/${id}`, {method:'DELETE'});
+  if(!r.ok && r.status !== 204){ alert('삭제에 실패했습니다'); return; }
+  closeDetail();
+  await loadGrid();
+}
+</script>
+</body>
+</html>

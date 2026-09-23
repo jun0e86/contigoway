@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Text,
     ForeignKey,
+    Float,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -228,3 +229,27 @@ class Announcement(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     author = relationship("User")
+
+
+class Photo(Base):
+    """사진모음에 업로드된 이미지(jpg)/동영상(mov) 파일과 촬영 메타데이터."""
+
+    __tablename__ = "photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uploader_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    media_type = Column(String(10), nullable=False)  # "image" or "video"
+    file_path = Column(String(500), nullable=False)
+    thumbnail_path = Column(String(500), nullable=True)
+    original_filename = Column(String(255), nullable=True)
+    taken_at = Column(DateTime(timezone=True), nullable=True)       # 촬영일시 (EXIF, 없으면 NULL)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    location_name = Column(String(255), nullable=True)               # GPS -> 장소명 변환 결과
+    weather_code = Column(Integer, nullable=True)
+    weather_temp_max = Column(Integer, nullable=True)
+    weather_temp_min = Column(Integer, nullable=True)
+    occasion = Column(String(500), nullable=True)                     # 업로드 시 직접 입력한 태그/메모
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    uploader = relationship("User")
