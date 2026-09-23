@@ -137,6 +137,7 @@
     <button onclick="runSearch()">검색</button>
   </div>
   <div class="cat-row" id="catRow"></div>
+  <div id="resultCount" style="font-size:.8rem;color:var(--gray);margin-bottom:10px"></div>
 
   <div id="grid" class="grid"></div>
   <div id="emptyMsg" class="empty-msg" style="display:none">아직 업로드된 사진이 없어요.</div>
@@ -255,6 +256,7 @@ async function loadGrid(){
   document.getElementById('emptyMsg').style.display = allPhotos.length ? 'none' : 'block';
   document.getElementById('emptyMsg').textContent = (currentQuery || currentCategory)
     ? '조건에 맞는 사진이 없어요.' : '아직 업로드된 사진이 없어요.';
+  document.getElementById('resultCount').textContent = allPhotos.length + '건 조회완료';
   grid.innerHTML = allPhotos.map(p => {
     const thumbSrc = fileUrl(p.thumbnail_path || p.file_path);
     const inner = p.media_type === 'video'
