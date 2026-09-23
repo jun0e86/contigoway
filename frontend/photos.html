@@ -69,6 +69,19 @@
   .meta-row .ico{width:20px;flex-shrink:0;text-align:center}
   .meta-row .sub{color:var(--gray);font-size:.78rem}
   .detail-actions{display:flex;gap:8px;margin-top:18px}
+
+  .comments{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+  .comments h3{font-size:.85rem;font-weight:700;margin-bottom:10px}
+  .comment-item{background:var(--panel);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .comment-item .c-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+  .comment-item .c-author{font-size:.78rem;font-weight:700}
+  .comment-item .c-del{background:none;border:none;color:var(--gray-light);font-size:.72rem;cursor:pointer}
+  .comment-item .c-content{font-size:.85rem;line-height:1.5;white-space:pre-wrap}
+  .comment-empty{color:var(--gray-light);font-size:.8rem;margin-bottom:10px}
+  .comment-form{display:flex;gap:6px;margin-top:10px}
+  .comment-form input{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:980px;font-size:.85rem;outline:none;font-family:inherit}
+  .comment-form input:focus{border-color:var(--blue)}
+  .comment-form button{background:var(--black);color:#fff;border:none;border-radius:980px;padding:0 16px;font-size:.82rem;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -137,6 +150,15 @@
     <div class="detail-media" id="detailMedia"></div>
     <div id="detailMeta"></div>
     <div class="detail-actions" id="detailActions"></div>
+    <div class="comments">
+      <h3>댓글</h3>
+      <div id="commentList"></div>
+      <div class="comment-form">
+        <input type="text" id="commentInput" placeholder="댓글을 남겨보세요" maxlength="1000"
+               onkeydown="if(event.key==='Enter') submitComment()">
+        <button onclick="submitComment()">등록</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -261,7 +283,9 @@ async function submitUpload(){
 }
 
 // ── 상세 ──
+let currentDetailId = null;
 function openDetail(id){
+  currentDetailId = id;
   const p = allPhotos.find(x => x.id === id);
   if(!p) return;
   const media = p.media_type === 'video'
@@ -288,9 +312,59 @@ function openDetail(id){
        <button class="btn-danger" onclick="deletePhoto(${p.id})">삭제</button>`
     : '';
 
+  renderComments(p);
+  document.getElementById('commentInput').value = '';
   document.getElementById('detailOverlay').classList.add('open');
 }
-function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); currentDetailId = null; }
+
+function renderComments(p){
+  const list = document.getElementById('commentList');
+  const comments = p.comments || [];
+  if(!comments.length){
+    list.innerHTML = '<div class="comment-empty">아직 댓글이 없어요.</div>';
+    return;
+  }
+  list.innerHTML = comments.map(c => {
+    const canDelete = me && (me.role === 'admin' || c.user_id === me.id);
+    return `<div class="comment-item">
+      <div class="c-head">
+        <span class="c-author">${escapeHtml(c.author_name || '알 수 없음')}</span>
+        ${canDelete ? `<button class="c-del" onclick="deleteComment(${p.id}, ${c.id})">삭제</button>` : ''}
+      </div>
+      <div class="c-content">${escapeHtml(c.content)}</div>
+    </div>`;
+  }).join('');
+}
+
+function _replacePhotoInList(updated){
+  const idx = allPhotos.findIndex(x => x.id === updated.id);
+  if(idx >= 0) allPhotos[idx] = updated;
+}
+
+async function submitComment(){
+  const input = document.getElementById('commentInput');
+  const content = input.value.trim();
+  if(!content || !currentDetailId) return;
+  const r = await authFetch(`/photos/${currentDetailId}/comments`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({content}),
+  });
+  if(!r.ok){ alert('댓글 등록에 실패했습니다'); return; }
+  const updated = await r.json();
+  _replacePhotoInList(updated);
+  renderComments(updated);
+  input.value = '';
+}
+
+async function deleteComment(photoId, commentId){
+  if(!confirm('댓글을 삭제할까요?')) return;
+  const r = await authFetch(`/photos/${photoId}/comments/${commentId}`, {method:'DELETE'});
+  if(!r.ok){ alert('댓글 삭제에 실패했습니다'); return; }
+  const updated = await r.json();
+  _replacePhotoInList(updated);
+  renderComments(updated);
+}
 
 async function editOccasion(id){
   const p = allPhotos.find(x => x.id === id);

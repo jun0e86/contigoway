@@ -253,3 +253,19 @@ class Photo(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     uploader = relationship("User")
+    comments = relationship("PhotoComment", back_populates="photo", cascade="all, delete-orphan")
+
+
+class PhotoComment(Base):
+    """사진에 대한 댓글."""
+
+    __tablename__ = "photo_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    photo_id = Column(Integer, ForeignKey("photos.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    photo = relationship("Photo", back_populates="comments")
+    author = relationship("User")

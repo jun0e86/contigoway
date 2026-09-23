@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Photo, User
+from models import Photo, PhotoComment, User
 from auth import get_current_user
 
 router = APIRouter(prefix="/photos", tags=["사진모음"])
@@ -227,6 +227,17 @@ def _save_photo_file(upload: UploadFile, user_id: int, occasion: Optional[str]) 
 
 
 # ── 응답 스키마 ────────────────────────────────────────────────
+class CommentOut(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    author_name: Optional[str] = None
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+
 class PhotoOut(BaseModel):
     id: int
     media_type: str
@@ -241,10 +252,25 @@ class PhotoOut(BaseModel):
     weather_temp_max: Optional[int]
     weather_temp_min: Optional[int]
     occasion: Optional[str]
+    uploader_id: int
     uploader_name: Optional[str] = None
+    comments: list[CommentOut] = []
 
     class Config:
         from_attributes = True
+
+
+def _to_photo_out(photo: Photo, uploader_names: dict) -> PhotoOut:
+    item = PhotoOut.model_validate(photo)
+    item.uploader_name = uploader_names.get(photo.uploader_id)
+    item.comments = [
+        CommentOut(
+            id=c.id, content=c.content, created_at=c.created_at,
+            user_id=c.user_id, author_name=uploader_names.get(c.user_id),
+        )
+        for c in sorted(photo.comments, key=lambda c: c.created_at)
+    ]
+    return item
 
 
 # ── 엔드포인트 ────────────────────────────────────────────────
@@ -266,10 +292,12 @@ def upload_photos(
         db.add(photo)
         saved.append(photo)
     db.commit()
+    uploader_names = {u.id: u.full_name for u in db.query(User).all()}
+    out = []
     for p in saved:
         db.refresh(p)
-        p.uploader_name = user.full_name
-    return saved
+        out.append(_to_photo_out(p, uploader_names))
+    return out
 
 
 @router.get("", response_model=list[PhotoOut])
@@ -286,12 +314,7 @@ def list_photos(
         .offset(offset).limit(limit).all()
     )
     uploader_names = {u.id: u.full_name for u in db.query(User).all()}
-    out = []
-    for p in rows:
-        item = PhotoOut.model_validate(p)
-        item.uploader_name = uploader_names.get(p.uploader_id)
-        out.append(item)
-    return out
+    return [_to_photo_out(p, uploader_names) for p in rows]
 
 
 class PhotoUpdate(BaseModel):
@@ -312,8 +335,8 @@ def update_photo(
         photo.occasion = body.occasion.strip()[:500] or None
     db.commit()
     db.refresh(photo)
-    photo.uploader_name = user.full_name
-    return photo
+    uploader_names = {u.id: u.full_name for u in db.query(User).all()}
+    return _to_photo_out(photo, uploader_names)
 
 
 @router.delete("/{photo_id}", status_code=204)
@@ -333,3 +356,52 @@ def delete_photo(
     db.delete(photo)
     db.commit()
     return None
+
+
+# ── 댓글 ─────────────────────────────────────────────────────
+class CommentIn(BaseModel):
+    content: str
+
+
+def _get_photo_or_404(photo_id: int, db: Session) -> Photo:
+    photo = db.query(Photo).filter(Photo.id == photo_id).first()
+    if not photo:
+        raise HTTPException(404, "사진을 찾을 수 없습니다")
+    return photo
+
+
+@router.post("/{photo_id}/comments", status_code=201, response_model=PhotoOut)
+def add_comment(
+    photo_id: int, body: CommentIn,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    photo = _get_photo_or_404(photo_id, db)
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(400, "댓글 내용을 입력해주세요")
+    db.add(PhotoComment(photo_id=photo.id, user_id=user.id, content=content))
+    db.commit()
+    db.refresh(photo)
+    uploader_names = {u.id: u.full_name for u in db.query(User).all()}
+    return _to_photo_out(photo, uploader_names)
+
+
+@router.delete("/{photo_id}/comments/{comment_id}", response_model=PhotoOut)
+def delete_comment(
+    photo_id: int, comment_id: int,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    comment = (
+        db.query(PhotoComment)
+        .filter(PhotoComment.id == comment_id, PhotoComment.photo_id == photo_id)
+        .first()
+    )
+    if not comment:
+        raise HTTPException(404, "댓글을 찾을 수 없습니다")
+    if comment.user_id != user.id and user.role != "admin":
+        raise HTTPException(403, "본인이 남긴 댓글만 삭제할 수 있습니다")
+    db.delete(comment)
+    db.commit()
+    photo = _get_photo_or_404(photo_id, db)
+    uploader_names = {u.id: u.full_name for u in db.query(User).all()}
+    return _to_photo_out(photo, uploader_names)
