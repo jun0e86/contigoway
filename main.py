@@ -21,6 +21,7 @@ from flights import router as flights_router
 from legal_review import build_search_router
 from photos import router as photos_router
 from social_auth import router as social_auth_router
+from account_recovery import router as account_recovery_router
 
 
 
@@ -54,6 +55,7 @@ app.include_router(flights_router)
 app.include_router(build_search_router())
 app.include_router(photos_router)
 app.include_router(social_auth_router)
+app.include_router(account_recovery_router)
 
 
 @app.on_event("startup")

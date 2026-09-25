@@ -105,6 +105,14 @@
   .link-head p{font-size:.84rem;color:var(--gray);line-height:1.5}
   .link-alt{text-align:center;margin-top:16px}
   .link-alt button{background:none;border:none;color:var(--blue);font-size:.84rem;cursor:pointer;font-family:inherit}
+  .find-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:150;padding:20px}
+  .find-overlay.open{display:flex}
+  .find-modal{background:#fff;border-radius:20px;padding:30px 28px;max-width:380px;width:100%;position:relative}
+  .find-modal h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+  .find-modal p{font-size:.84rem;color:var(--gray);line-height:1.5;margin-bottom:18px}
+  .find-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.3rem;color:var(--gray);cursor:pointer;line-height:1}
+  .find-switch{text-align:center;margin-top:14px}
+  .find-switch button{background:none;border:none;color:var(--blue);font-size:.82rem;cursor:pointer;font-family:inherit}
   :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 
@@ -239,6 +247,19 @@
     <div class="field"><label>비밀번호</label><input type="password" id="reg-password" placeholder="8자 이상" autocomplete="new-password"></div>
     <div class="msg" id="reg-msg"></div>
     <button class="btn" onclick="doRegister()">가입 신청</button>
+  </div>
+</div>
+
+<div class="find-overlay" id="findOverlay" onclick="if(event.target===this)closeFind()">
+  <div class="find-modal" role="dialog" aria-modal="true" aria-labelledby="findTitle">
+    <button class="find-close" onclick="closeFind()" aria-label="닫기">×</button>
+    <h3 id="findTitle"></h3>
+    <p id="findDesc"></p>
+    <div class="field"><label id="findLabel" for="findInput"></label>
+      <input type="text" id="findInput" autocapitalize="off" onkeydown="if(event.key==='Enter')submitFind()"></div>
+    <div class="msg" id="find-msg"></div>
+    <button class="btn" id="findBtn" onclick="submitFind()"></button>
+    <div class="find-switch"><button type="button" id="findSwitch" onclick="openFind(findMode==='pw'?'id':'pw')"></button></div>
   </div>
 </div>
 
@@ -514,9 +535,49 @@ async function doLogin(){
 }
 
 /* ── 계정/암호 찾기 (다음 단계에서 연결) ── */
+let findMode = 'pw';
+const FIND = {
+  pw: {title:'암호 재설정', desc:'가입할 때 등록한 이메일로 새 암호를 설정할 수 있는 링크를 보내드려요.',
+       label:'아이디, 전화번호 또는 이메일', btn:'재설정 링크 받기', sw:'아이디가 기억나지 않나요?',
+       path:'/auth/password-reset/request', key:'identifier', type:'text'},
+  id: {title:'아이디 찾기', desc:'가입할 때 등록한 이메일로 아이디를 보내드려요.',
+       label:'가입한 이메일', btn:'아이디 받기', sw:'암호를 재설정할래요',
+       path:'/auth/find-id', key:'email', type:'email'},
+};
+
 function openFind(kind){
-  const label = kind === 'pw' ? '암호 재설정' : '아이디 찾기';
-  showMsg('login-msg', `${label} 기능은 곧 연결돼요. 급하면 관리자에게 문의해주세요.`, 'info');
+  findMode = kind;
+  const f = FIND[kind];
+  document.getElementById('findTitle').textContent = f.title;
+  document.getElementById('findDesc').textContent = f.desc;
+  document.getElementById('findLabel').textContent = f.label;
+  document.getElementById('findBtn').textContent = f.btn;
+  document.getElementById('findBtn').disabled = false;
+  document.getElementById('findSwitch').textContent = f.sw;
+  const input = document.getElementById('findInput');
+  input.type = f.type;
+  input.autocomplete = kind === 'id' ? 'email' : 'username';
+  // 로그인 칸에 입력해둔 아이디가 있으면 재설정 칸에 미리 채움
+  input.value = (kind === 'pw') ? idInput.value.trim() : '';
+  document.getElementById('find-msg').className = 'msg';
+  document.getElementById('findOverlay').classList.add('open');
+  setTimeout(()=>input.focus(), 50);
+}
+
+function closeFind(){ document.getElementById('findOverlay').classList.remove('open'); }
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeFind(); });
+
+async function submitFind(){
+  const f = FIND[findMode];
+  const value = document.getElementById('findInput').value.trim();
+  if(!value){ showMsg('find-msg', `${f.label}을(를) 입력해주세요`, 'error'); return; }
+  if(findMode === 'id' && !value.includes('@')){ showMsg('find-msg','이메일 주소 형식으로 입력해주세요','error'); return; }
+  const btn = document.getElementById('findBtn'); btn.disabled = true;
+  try{
+    const {ok, data} = await postJSON(f.path, {[f.key]: value});
+    if(!ok){ showMsg('find-msg', data.detail || '요청하지 못했어요', 'error'); btn.disabled = false; return; }
+    showMsg('find-msg', data.message + ' 메일이 안 보이면 스팸함도 확인해주세요.', 'success');
+  }catch(e){ showMsg('find-msg','서버에 연결하지 못했어요','error'); btn.disabled = false; }
 }
 
 /* ── 소셜 로그인 ── */
