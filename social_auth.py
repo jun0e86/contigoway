@@ -140,9 +140,10 @@ def _state_cookie(provider: str) -> str:
     return f"{provider}_oauth_state"
 
 
-def _to_login(provider: str, **fragment) -> RedirectResponse:
+def _to_login(cookie_provider: str, **fragment) -> RedirectResponse:
+    """login.html로 복귀. fragment(#)에 결과를 담고, 사용한 state 쿠키는 삭제."""
     resp = RedirectResponse(f"{SITE_URL}/login.html#" + urllib.parse.urlencode(fragment), status_code=302)
-    resp.delete_cookie(_state_cookie(provider), path="/")
+    resp.delete_cookie(_state_cookie(cookie_provider), path="/")
     return resp
 
 
