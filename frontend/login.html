@@ -207,7 +207,7 @@
   <!-- ── 소셜 계정 연결 (카카오 첫 로그인) ── -->
   <div class="screen" id="screen-link">
     <div class="link-head">
-      <div class="badge">카카오 계정 확인됨</div>
+      <div class="badge" id="linkBadge">카카오 계정 확인됨</div>
       <h2 id="linkTitle">처음 오셨네요</h2>
       <p id="linkDesc">기존 contigoway 계정에 연결하면 다음부터 카카오로 바로 로그인돼요.</p>
     </div>
@@ -281,7 +281,7 @@ const SAVED_ID_KEY = 'saved_login_id';
 /* 소셜 로그인: 백엔드 연결되면 null 대신 주소를 넣으면 바로 활성화됨 */
 const SOCIAL = {
   kakao: API + '/auth/kakao/login',
-  naver: null,   // 예: API + '/auth/naver/login'
+  naver: API + '/auth/naver/login',
   apple: null,
 };
 const SOCIAL_NAME = {kakao:'카카오', naver:'네이버', apple:'Apple'};
@@ -394,6 +394,7 @@ pwInput.addEventListener('change', ()=>{
 
 /* ── 소셜 로그인 복귀 처리 (#token / #link_ticket / #social_error) ── */
 let linkTicket = null;
+let linkProvider = 'kakao';
 
 function finishLogin(data){
   localStorage.setItem('token', data.access_token || data.token);
@@ -422,7 +423,14 @@ const socialReturn = (function(){
   }
   if(p.get('link_ticket')){
     linkTicket = p.get('link_ticket');
-    const nick = p.get('nickname') || '카카오 사용자';
+    const prov = p.get('provider') || 'kakao';
+    linkProvider = prov;
+    const nick = p.get('nickname') || `${SOCIAL_NAME[prov] || ''} 사용자`;
+    const badge = document.getElementById('linkBadge');
+    badge.textContent = `${SOCIAL_NAME[prov] || '소셜'} 계정 확인됨`;
+    if(prov === 'naver'){ badge.style.background = '#03C75A'; badge.style.color = '#fff'; }
+    document.getElementById('linkDesc').textContent =
+      `기존 contigoway 계정에 연결하면 다음부터 ${SOCIAL_NAME[prov] || '소셜 계정'}로 바로 로그인돼요.`;
     document.getElementById('linkTitle').textContent = `${nick}님, 처음 오셨네요`;
     showScreen('link');
     setTimeout(()=>document.getElementById('link-username').focus(), 50);
@@ -436,7 +444,7 @@ function showSocialRegister(on){
   document.getElementById('linkRegister').style.display = on ? '' : 'none';
   document.getElementById('linkDesc').textContent = on
     ? '가입 신청 후 관리자가 승인하면 카카오로 바로 로그인할 수 있어요.'
-    : '기존 contigoway 계정에 연결하면 다음부터 카카오로 바로 로그인돼요.';
+    : `기존 contigoway 계정에 연결하면 다음부터 ${SOCIAL_NAME[linkProvider] || '소셜 계정'}로 바로 로그인돼요.`;
 }
 
 function cancelSocialLink(){

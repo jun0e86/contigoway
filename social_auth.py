@@ -1,16 +1,18 @@
 """
 social_auth.py
 
-카카오 로그인 + 카카오톡 '나에게 보내기'.
+카카오·네이버 로그인 + 카카오톡 '나에게 보내기'.
 
 흐름:
   GET  /auth/kakao/login        카카오 동의 화면으로 이동 (state 쿠키로 CSRF 방지)
   GET  /auth/kakao/callback     토큰 발급 → 연결된 계정이면 바로 로그인,
                                 처음이면 10분짜리 연결 티켓과 함께 login.html로 복귀
+  GET  /auth/naver/login        네이버 동의 화면으로 이동
+  GET  /auth/naver/callback     (카카오와 동일한 흐름)
   POST /auth/social/link        기존 계정 아이디·비밀번호 확인 후 카카오 연결 (+ 로그인)
   POST /auth/social/register    새 계정 가입 신청 + 카카오 연결 (관리자 승인 필요)
   GET  /auth/social/status      내 소셜 연결 상태
-  POST /auth/social/unlink/kakao  카카오 연결 해제
+  POST /auth/social/unlink/{provider}  소셜 연결 해제 (kakao / naver)
   POST /kakao/test-message      나에게 카카오톡 테스트 메시지
 
 보안 메모:
@@ -62,9 +64,14 @@ KAKAO_CLIENT_SECRET = os.environ.get("KAKAO_CLIENT_SECRET", "")
 KAKAO_REDIRECT_URI = os.environ.get(
     "KAKAO_REDIRECT_URI", "https://contigoway.com/api/auth/kakao/callback"
 )
+NAVER_CLIENT_ID = os.environ.get("NAVER_CLIENT_ID", "")
+NAVER_CLIENT_SECRET = os.environ.get("NAVER_CLIENT_SECRET", "")
+NAVER_REDIRECT_URI = os.environ.get(
+    "NAVER_REDIRECT_URI", "https://contigoway.com/api/auth/naver/callback"
+)
 SITE_URL = os.environ.get("SITE_URL", "https://contigoway.com")
 
-STATE_COOKIE = "kakao_oauth_state"
+PROVIDER_NAME = {"kakao": "카카오", "naver": "네이버", "apple": "Apple"}
 LINK_TICKET_MINUTES = 10
 
 _fernet = Fernet(os.environ["FERNET_KEY"].encode())
@@ -129,10 +136,28 @@ def _http(method: str, url: str, data: Optional[dict] = None, headers: Optional[
         raise HTTPException(502, "카카오 서버에 연결하지 못했습니다")
 
 
-def _to_login(**fragment) -> RedirectResponse:
+def _state_cookie(provider: str) -> str:
+    return f"{provider}_oauth_state"
+
+
+def _to_login(provider: str, **fragment) -> RedirectResponse:
     resp = RedirectResponse(f"{SITE_URL}/login.html#" + urllib.parse.urlencode(fragment), status_code=302)
-    resp.delete_cookie(STATE_COOKIE, path="/")
+    resp.delete_cookie(_state_cookie(provider), path="/")
     return resp
+
+
+def _start_oauth(provider: str, authorize_url: str, params: dict) -> RedirectResponse:
+    state = secrets.token_urlsafe(24)
+    params = {**params, "response_type": "code", "state": state}
+    resp = RedirectResponse(authorize_url + "?" + urllib.parse.urlencode(params), 302)
+    resp.set_cookie(_state_cookie(provider), state, max_age=600, httponly=True, secure=True,
+                    samesite="lax", path="/")
+    return resp
+
+
+def _state_ok(provider: str, request: Request, code: Optional[str], state: Optional[str]) -> bool:
+    cookie_state = request.cookies.get(_state_cookie(provider))
+    return bool(code and state and cookie_state and secrets.compare_digest(state, cookie_state))
 
 
 def _save_tokens(acct: SocialAccount, tok: dict) -> None:
@@ -140,7 +165,8 @@ def _save_tokens(acct: SocialAccount, tok: dict) -> None:
     acct.access_expires_at = _now() + timedelta(seconds=int(tok.get("expires_in", 0)))
     if tok.get("refresh_token"):  # 갱신 시에는 만료 1개월 전일 때만 새로 내려옴
         acct.refresh_token_enc = _enc(tok["refresh_token"])
-        acct.refresh_expires_at = _now() + timedelta(seconds=int(tok.get("refresh_token_expires_in", 0)))
+        rt_exp = tok.get("refresh_token_expires_in")
+        acct.refresh_expires_at = _now() + timedelta(seconds=int(rt_exp)) if rt_exp else None
     if tok.get("scope"):
         acct.scopes = tok["scope"]
 
@@ -224,20 +250,35 @@ def kakao_account_of(db: Session, user_id: int) -> Optional[SocialAccount]:
 # ---------------------------------------------------------------------------
 # 카카오 로그인
 # ---------------------------------------------------------------------------
+def _finish_social_login(db: Session, provider: str, provider_uid: str, nickname: str, tok: dict) -> RedirectResponse:
+    """소셜 인증 성공 후 공통 처리: 연결된 계정이면 로그인, 아니면 연결 티켓 발급."""
+    acct = db.query(SocialAccount).filter_by(provider=provider, provider_user_id=provider_uid).first()
+    if not acct:
+        acct = SocialAccount(provider=provider, provider_user_id=provider_uid)
+        db.add(acct)
+    acct.nickname = nickname
+    _save_tokens(acct, tok)
+    db.commit()
+    db.refresh(acct)
+
+    if acct.user_id:
+        user = db.get(User, acct.user_id)
+        if user:
+            err = _status_error(user)
+            if err:
+                return _to_login(provider, social_error=err)
+            data = login_response(user)
+            return _to_login(provider, token=data["access_token"], full_name=data["full_name"], role=data["role"])
+
+    return _to_login(provider, link_ticket=_make_link_ticket(acct.id), provider=provider, nickname=nickname)
+
+
 @router.get("/auth/kakao/login")
 def kakao_login():
     if not KAKAO_REST_API_KEY:
         raise HTTPException(503, "카카오 로그인이 아직 설정되지 않았습니다")
-    state = secrets.token_urlsafe(24)
-    params = {
-        "client_id": KAKAO_REST_API_KEY,
-        "redirect_uri": KAKAO_REDIRECT_URI,
-        "response_type": "code",
-        "state": state,
-    }
-    resp = RedirectResponse("https://kauth.kakao.com/oauth/authorize?" + urllib.parse.urlencode(params), 302)
-    resp.set_cookie(STATE_COOKIE, state, max_age=600, httponly=True, secure=True, samesite="lax", path="/")
-    return resp
+    return _start_oauth("kakao", "https://kauth.kakao.com/oauth/authorize",
+                        {"client_id": KAKAO_REST_API_KEY, "redirect_uri": KAKAO_REDIRECT_URI})
 
 
 @router.get("/auth/kakao/callback")
@@ -249,11 +290,9 @@ def kakao_callback(
     db: Session = Depends(get_db),
 ):
     if error:
-        return _to_login(social_error="카카오 로그인을 취소했어요")
-
-    cookie_state = request.cookies.get(STATE_COOKIE)
-    if not (code and state and cookie_state and secrets.compare_digest(state, cookie_state)):
-        return _to_login(social_error="로그인 요청이 만료되었어요. 다시 시도해주세요")
+        return _to_login("kakao", social_error="카카오 로그인을 취소했어요")
+    if not _state_ok("kakao", request, code, state):
+        return _to_login("kakao", social_error="로그인 요청이 만료되었어요. 다시 시도해주세요")
 
     try:
         tok = _http(
@@ -273,31 +312,66 @@ def kakao_callback(
             headers={"Authorization": f"Bearer {tok['access_token']}"},
         )
     except HTTPException:
-        return _to_login(social_error="카카오 인증에 실패했어요. 잠시 후 다시 시도해주세요")
+        return _to_login("kakao", social_error="카카오 인증에 실패했어요. 잠시 후 다시 시도해주세요")
 
-    kakao_id = str(me["id"])
     profile = (me.get("kakao_account") or {}).get("profile") or {}
     nickname = profile.get("nickname") or (me.get("properties") or {}).get("nickname") or "카카오 사용자"
+    return _finish_social_login(db, "kakao", str(me["id"]), nickname, tok)
 
-    acct = db.query(SocialAccount).filter_by(provider="kakao", provider_user_id=kakao_id).first()
-    if not acct:
-        acct = SocialAccount(provider="kakao", provider_user_id=kakao_id)
-        db.add(acct)
-    acct.nickname = nickname
-    _save_tokens(acct, tok)
-    db.commit()
-    db.refresh(acct)
 
-    if acct.user_id:
-        user = db.get(User, acct.user_id)
-        if user:
-            err = _status_error(user)
-            if err:
-                return _to_login(social_error=err)
-            data = login_response(user)
-            return _to_login(token=data["access_token"], full_name=data["full_name"], role=data["role"])
+# ---------------------------------------------------------------------------
+# 네이버 로그인
+# ---------------------------------------------------------------------------
+@router.get("/auth/naver/login")
+def naver_login():
+    if not NAVER_CLIENT_ID:
+        raise HTTPException(503, "네이버 로그인이 아직 설정되지 않았습니다")
+    return _start_oauth("naver", "https://nid.naver.com/oauth2.0/authorize",
+                        {"client_id": NAVER_CLIENT_ID, "redirect_uri": NAVER_REDIRECT_URI})
 
-    return _to_login(link_ticket=_make_link_ticket(acct.id), provider="kakao", nickname=nickname)
+
+@router.get("/auth/naver/callback")
+def naver_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    if error:
+        return _to_login("naver", social_error="네이버 로그인을 취소했어요")
+    if not _state_ok("naver", request, code, state):
+        return _to_login("naver", social_error="로그인 요청이 만료되었어요. 다시 시도해주세요")
+
+    try:
+        tok = _http(
+            "POST",
+            "https://nid.naver.com/oauth2.0/token",
+            {
+                "grant_type": "authorization_code",
+                "client_id": NAVER_CLIENT_ID,
+                "client_secret": NAVER_CLIENT_SECRET,
+                "code": code,
+                "state": state,
+            },
+        )
+        if "access_token" not in tok:  # 네이버는 실패도 200 + error 필드로 응답
+            print(f"[naver] 토큰 발급 실패: {tok.get('error')} {tok.get('error_description')}")
+            raise HTTPException(502, "네이버 토큰 발급 실패")
+        me = _http(
+            "GET",
+            "https://openapi.naver.com/v1/nid/me",
+            headers={"Authorization": f"Bearer {tok['access_token']}"},
+        )
+        if me.get("resultcode") != "00":
+            print(f"[naver] 프로필 조회 실패: {me}")
+            raise HTTPException(502, "네이버 프로필 조회 실패")
+    except HTTPException:
+        return _to_login("naver", social_error="네이버 인증에 실패했어요. 잠시 후 다시 시도해주세요")
+
+    profile = me.get("response") or {}
+    nickname = profile.get("nickname") or profile.get("name") or "네이버 사용자"
+    return _finish_social_login(db, "naver", str(profile["id"]), nickname, tok)
 
 
 # ---------------------------------------------------------------------------
@@ -325,14 +399,14 @@ def social_link(data: LinkRequest, db: Session = Depends(get_db)):
         raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않습니다")
 
     if db.query(SocialAccount).filter_by(provider=acct.provider, user_id=user.id).first():
-        raise HTTPException(409, "이 계정에는 이미 다른 카카오 계정이 연결되어 있어요")
+        raise HTTPException(409, f"이 계정에는 이미 다른 {PROVIDER_NAME.get(acct.provider, '')} 계정이 연결되어 있어요")
 
     acct.user_id = user.id
     db.commit()
 
     err = _status_error(user)
     if err:
-        return {"message": f"카카오 계정을 연결했어요. {err}"}
+        return {"message": f"{PROVIDER_NAME.get(acct.provider, '')} 계정을 연결했어요. {err}"}
     return login_response(user)
 
 
@@ -363,7 +437,8 @@ def social_register(data: SocialRegisterRequest, db: Session = Depends(get_db)):
     db.flush()
     acct.user_id = user.id
     db.commit()
-    return {"message": "가입 신청이 완료되었어요. 관리자 승인 후 카카오로 로그인할 수 있어요."}
+    name = PROVIDER_NAME.get(acct.provider, "소셜 계정")
+    return {"message": f"가입 신청이 완료되었어요. 관리자 승인 후 {name}로 로그인할 수 있어요."}
 
 
 @router.get("/auth/social/status")
@@ -380,20 +455,30 @@ def social_status(current_user: User = Depends(get_current_user), db: Session = 
     ]
 
 
-@router.post("/auth/social/unlink/kakao")
-def social_unlink_kakao(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    acct = kakao_account_of(db, current_user.id)
+@router.post("/auth/social/unlink/{provider}")
+def social_unlink(provider: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    acct = db.query(SocialAccount).filter_by(provider=provider, user_id=current_user.id).first()
+    name = PROVIDER_NAME.get(provider, provider)
     if not acct:
-        raise HTTPException(404, "연결된 카카오 계정이 없어요")
-    try:  # 카카오 쪽 앱 연결도 끊기 (실패해도 우리 쪽 연결은 해제)
-        token = get_kakao_access_token(db, acct)
-        _http("POST", "https://kapi.kakao.com/v1/user/unlink",
-              headers={"Authorization": f"Bearer {token}"}, data={})
+        raise HTTPException(404, f"연결된 {name} 계정이 없어요")
+    try:  # 제공자 쪽 연결도 끊기 (실패해도 우리 쪽 연결은 해제)
+        if provider == "kakao":
+            token = get_kakao_access_token(db, acct)
+            _http("POST", "https://kapi.kakao.com/v1/user/unlink",
+                  headers={"Authorization": f"Bearer {token}"}, data={})
+        elif provider == "naver" and acct.access_token_enc:
+            _http("POST", "https://nid.naver.com/oauth2.0/token", {
+                "grant_type": "delete",
+                "client_id": NAVER_CLIENT_ID,
+                "client_secret": NAVER_CLIENT_SECRET,
+                "access_token": _dec(acct.access_token_enc),
+                "service_provider": "NAVER",
+            })
     except HTTPException:
         pass
     db.delete(acct)
     db.commit()
-    return {"message": "카카오 연결을 해제했어요"}
+    return {"message": f"{name} 연결을 해제했어요"}
 
 
 # ---------------------------------------------------------------------------
