@@ -95,7 +95,6 @@
   .social button svg{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:20px;height:20px}
   .s-kakao{background:#FEE500;color:rgba(0,0,0,.85)}
   .s-naver{background:#03C75A;color:#fff}
-  .s-apple{background:#000;color:#fff}
   .social button:hover{filter:brightness(.96)}
 
   .link-head{text-align:center;margin-bottom:20px}
@@ -197,10 +196,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M15.6 12.8 8.1 2H2v20h6.4V11.2L15.9 22H22V2h-6.4z"/></svg>
         네이버로 계속하기
       </button>
-      <button type="button" class="s-apple" onclick="socialLogin('apple')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8s2 .8 3.4.8c1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.6-1-2.6-4zM13.9 5c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z"/></svg>
-        Apple로 계속하기
-      </button>
     </div>
   </div>
 
@@ -282,9 +277,8 @@ const SAVED_ID_KEY = 'saved_login_id';
 const SOCIAL = {
   kakao: API + '/auth/kakao/login',
   naver: API + '/auth/naver/login',
-  apple: null,
 };
-const SOCIAL_NAME = {kakao:'카카오', naver:'네이버', apple:'Apple'};
+const SOCIAL_NAME = {kakao:'카카오', naver:'네이버'};
 
 /* ── 방문자 수 (기존) ── */
 (async function trackVisit(){
@@ -531,10 +525,7 @@ async function doLogin(){
     if(document.getElementById('rememberId').checked) localStorage.setItem(SAVED_ID_KEY, username);
     else localStorage.removeItem(SAVED_ID_KEY);
 
-    localStorage.setItem('token', data.access_token);
-    localStorage.setItem('full_name', data.full_name);
-    localStorage.setItem('role', data.role);
-    location.href = '/index.html';
+    finishLogin(data);
   }catch(e){
     showMsg('login-msg','서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요','error');
   }finally{
