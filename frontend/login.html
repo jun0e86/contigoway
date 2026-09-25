@@ -98,6 +98,13 @@
   .s-apple{background:#000;color:#fff}
   .social button:hover{filter:brightness(.96)}
 
+  .link-head{text-align:center;margin-bottom:20px}
+  .link-head .badge{display:inline-flex;align-items:center;gap:6px;background:#FEE500;color:rgba(0,0,0,.85);
+    font-size:.78rem;font-weight:700;padding:5px 12px;border-radius:980px;margin-bottom:12px}
+  .link-head h2{font-size:1.15rem;font-weight:700;margin-bottom:6px}
+  .link-head p{font-size:.84rem;color:var(--gray);line-height:1.5}
+  .link-alt{text-align:center;margin-top:16px}
+  .link-alt button{background:none;border:none;color:var(--blue);font-size:.84rem;cursor:pointer;font-family:inherit}
   :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 
@@ -189,6 +196,36 @@
     </div>
   </div>
 
+  <!-- ── 소셜 계정 연결 (카카오 첫 로그인) ── -->
+  <div class="screen" id="screen-link">
+    <div class="link-head">
+      <div class="badge">카카오 계정 확인됨</div>
+      <h2 id="linkTitle">처음 오셨네요</h2>
+      <p id="linkDesc">기존 contigoway 계정에 연결하면 다음부터 카카오로 바로 로그인돼요.</p>
+    </div>
+
+    <div id="linkExisting">
+      <div class="field"><label>아이디 또는 전화번호</label><input type="text" id="link-username" autocomplete="username" autocapitalize="off"></div>
+      <div class="field"><label>비밀번호</label><input type="password" id="link-password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doSocialLink()"></div>
+      <div class="msg" id="link-msg"></div>
+      <button class="btn" id="linkBtn" onclick="doSocialLink()">계정 연결하고 로그인</button>
+      <div class="link-alt"><button type="button" onclick="showSocialRegister(true)">contigoway 계정이 없어요</button></div>
+    </div>
+
+    <div id="linkRegister" style="display:none">
+      <div class="field"><label>아이디</label><input type="text" id="sreg-username" placeholder="3자 이상 영문·숫자" autocapitalize="off"></div>
+      <div class="field"><label>이름</label><input type="text" id="sreg-fullname" autocomplete="name"></div>
+      <div class="field"><label>이메일</label><input type="email" id="sreg-email" autocomplete="email"></div>
+      <div class="field"><label>전화번호 (선택)</label><input type="tel" id="sreg-phone" placeholder="010-1234-5678" autocomplete="tel"></div>
+      <div class="msg" id="sreg-msg"></div>
+      <button class="btn" onclick="doSocialRegister()">가입 신청</button>
+      <div class="link-alt"><button type="button" onclick="showSocialRegister(false)">기존 계정에 연결할게요</button></div>
+    </div>
+
+    <div class="link-alt"><button type="button" onclick="cancelSocialLink()" style="color:var(--gray)">취소하고 돌아가기</button></div>
+  </div>
+
   <!-- ── 회원가입 (기존 유지) ── -->
   <div class="screen" id="screen-register">
     <div class="field"><label>아이디</label><input type="text" id="reg-username" placeholder="3자 이상" autocomplete="username"></div>
@@ -222,7 +259,7 @@ const SAVED_ID_KEY = 'saved_login_id';
 
 /* 소셜 로그인: 백엔드 연결되면 null 대신 주소를 넣으면 바로 활성화됨 */
 const SOCIAL = {
-  kakao: null,   // 예: API + '/auth/kakao/login'
+  kakao: API + '/auth/kakao/login',
   naver: null,   // 예: API + '/auth/naver/login'
   apple: null,
 };
@@ -334,10 +371,106 @@ pwInput.addEventListener('change', ()=>{
   if(pwInput.value && idInput.value && !group.classList.contains('step2')) goPasswordStep();
 });
 
+/* ── 소셜 로그인 복귀 처리 (#token / #link_ticket / #social_error) ── */
+let linkTicket = null;
+
+function finishLogin(data){
+  localStorage.setItem('token', data.access_token || data.token);
+  localStorage.setItem('full_name', data.full_name);
+  localStorage.setItem('role', data.role);
+  location.href = '/index.html';
+}
+
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelector('.tabs').style.display = (name === 'link') ? 'none' : '';
+}
+
+const socialReturn = (function(){
+  if(!location.hash || location.hash.length < 2) return null;
+  const p = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname);   // 토큰이 주소창·방문기록에 남지 않게
+  if(p.get('token')){
+    finishLogin({token:p.get('token'), full_name:p.get('full_name'), role:p.get('role')});
+    return 'done';
+  }
+  if(p.get('social_error')){
+    showMsg('login-msg', p.get('social_error'), 'error');
+    return 'error';
+  }
+  if(p.get('link_ticket')){
+    linkTicket = p.get('link_ticket');
+    const nick = p.get('nickname') || '카카오 사용자';
+    document.getElementById('linkTitle').textContent = `${nick}님, 처음 오셨네요`;
+    showScreen('link');
+    setTimeout(()=>document.getElementById('link-username').focus(), 50);
+    return 'link';
+  }
+  return null;
+})();
+
+function showSocialRegister(on){
+  document.getElementById('linkExisting').style.display = on ? 'none' : '';
+  document.getElementById('linkRegister').style.display = on ? '' : 'none';
+  document.getElementById('linkDesc').textContent = on
+    ? '가입 신청 후 관리자가 승인하면 카카오로 바로 로그인할 수 있어요.'
+    : '기존 contigoway 계정에 연결하면 다음부터 카카오로 바로 로그인돼요.';
+}
+
+function cancelSocialLink(){
+  linkTicket = null;
+  showSocialRegister(false);
+  showScreen('login');
+  document.getElementById('tab-login').classList.add('active');
+  document.getElementById('tab-register').classList.remove('active');
+}
+
+async function postJSON(path, payload){
+  const r = await fetch(API + path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  let data = {};
+  try{ data = await r.json(); }catch(e){}
+  return {ok:r.ok, data};
+}
+
+async function doSocialLink(){
+  const username = document.getElementById('link-username').value.trim();
+  const password = document.getElementById('link-password').value;
+  if(!username || !password){ showMsg('link-msg','아이디(또는 전화번호)와 비밀번호를 입력해주세요','error'); return; }
+  const btn = document.getElementById('linkBtn'); btn.disabled = true;
+  try{
+    const {ok, data} = await postJSON('/auth/social/link', {ticket:linkTicket, username, password});
+    if(!ok){ showMsg('link-msg', data.detail || '연결하지 못했어요', 'error'); return; }
+    if(data.access_token){ finishLogin(data); return; }
+    showMsg('link-msg', data.message, 'success');
+  }catch(e){ showMsg('link-msg','서버에 연결하지 못했어요','error'); }
+  finally{ btn.disabled = false; }
+}
+
+async function doSocialRegister(){
+  const payload = {
+    ticket: linkTicket,
+    username: document.getElementById('sreg-username').value.trim(),
+    full_name: document.getElementById('sreg-fullname').value.trim(),
+    email: document.getElementById('sreg-email').value.trim(),
+  };
+  const phone = document.getElementById('sreg-phone').value.trim();
+  if(phone) payload.phone = phone;
+  if(!payload.username || !payload.full_name || !payload.email){ showMsg('sreg-msg','아이디, 이름, 이메일을 입력해주세요','error'); return; }
+  try{
+    const {ok, data} = await postJSON('/auth/social/register', payload);
+    if(!ok){
+      const d = Array.isArray(data.detail) ? '입력 형식을 확인해주세요' : data.detail;
+      showMsg('sreg-msg', d || '가입 신청에 실패했어요', 'error'); return;
+    }
+    showMsg('sreg-msg', data.message, 'success');
+  }catch(e){ showMsg('sreg-msg','서버에 연결하지 못했어요','error'); }
+}
+
 /* ── 계정 저장 ── */
 (function restoreSavedId(){
   const saved = localStorage.getItem(SAVED_ID_KEY);
-  if(!saved) return;
+  if(!saved || socialReturn === 'link' || socialReturn === 'done') return;
   idInput.value = saved;
   document.getElementById('rememberId').checked = true;
   goPasswordStep();
