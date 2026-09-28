@@ -22,4 +22,6 @@ def _poll_all_users():
 
 def start_scheduler():
     _scheduler.add_job(_poll_all_users, "interval", minutes=5, id="google_calendar_pull", replace_existing=True)
+    from trip_brief import register_trip_jobs
+    register_trip_jobs(_scheduler)
     _scheduler.start()
