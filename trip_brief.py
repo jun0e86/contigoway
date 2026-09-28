@@ -131,15 +131,18 @@ def build_card(db: Session, day: int) -> dict:
         left = (db.query(PackingItem)
                 .filter(PackingItem.trip == DEFAULT_TRIP, PackingItem.checked_by.is_(None))
                 .order_by(PackingItem.sort_order).all())
-        left_txt = ", ".join(i.name.split(" (")[0] for i in left[:6]) + (f" 외 {len(left) - 6}개" if len(left) > 6 else "")
+        names = [i.name.split(" (")[0] for i in left[:3]]
+        left_txt = f"{len(left)}개 · " + ", ".join(names) + (" 등" if len(left) > 3 else "")
         return {
-            "title": "✈️ 내일 삿포로 출발!",
-            "description": f"{_date_label(TRIP_DATES[0])} 1일차 · {info['title']}",
+            "header": "✈️ 내일 삿포로 출발!",
+            "category": f"{_date_label(TRIP_DATES[0])} 1일차",
+            "title": info["title"],
+            "description": "빠진 준비물은 오늘 밤에 챙겨요 🧳",
             "items": [
                 ("날씨", _weather(TRIP_DATES[0])),
                 ("이동", info["move"]),
                 ("숙소", HOTEL),
-                ("미준비", left_txt if left else "모두 챙겼어요 🎉"),
+                ("남은짐", left_txt if left else "모두 챙겼어요 🎉"),
                 ("체크", "여권 · e-티켓 · 엔화 · 충전기"),
             ],
             "link_path": "/index.html#secPacking",
@@ -149,8 +152,10 @@ def build_card(db: Session, day: int) -> dict:
         raise HTTPException(400, "day는 0~4 사이여야 해요")
     info, ds = DAYS[day], TRIP_DATES[day - 1]
     return {
-        "title": f"🗾 삿포로 {day}일차 · {_date_label(ds)}",
-        "description": info["title"],
+        "header": f"🗾 삿포로 {day}일차",
+        "category": _date_label(ds),
+        "title": info["title"],
+        "description": "오늘도 즐거운 여행 되세요 ☃️" if day < 4 else "마지막 날, 귀국편 시간 꼭 확인해요 ✈️",
         "items": [
             ("날씨", _weather(ds)),
             ("이동", info["move"]),
@@ -173,6 +178,8 @@ def _template(card: dict) -> dict:
         "object_type": "feed",
         "content": content,
         "item_content": {
+            "title_image_text": card["header"][:24],
+            "title_image_category": card["category"][:14],
             "items": [{"item": k, "item_op": v[:50]} for k, v in card["items"]],
         },
         "buttons": [{"title": card["button"], "link": link}],
