@@ -14,7 +14,7 @@ trip_brief.py
   POST /trip-brief/send-all?day=2       관리자: 연결된 모든 회원에게 발송
 
 선택 환경변수
-  KAKAO_CARD_IMAGE_URL  카드 상단 이미지(https 공개 URL, 예: https://contigoway.com/img/sapporo-card.jpg)
+  KAKAO_CARD_IMAGE_BASE  카드 상단 이미지 폴더 URL (기본: https://contigoway.com/img)
 """
 
 import json
@@ -35,7 +35,8 @@ router = APIRouter(prefix="/trip-brief", tags=["여행 카카오 브리핑"])
 
 TRIP_DATES = ["2026-12-16", "2026-12-17", "2026-12-18", "2026-12-19"]
 HOTEL = "그란벨 호텔 스스키노"
-CARD_IMAGE = os.environ.get("KAKAO_CARD_IMAGE_URL", "").strip()
+# 카드 상단 이미지: /var/www/contigoway/img/trip-card-day{0~4}.jpg (800x400)
+CARD_IMAGE_BASE = os.environ.get("KAKAO_CARD_IMAGE_BASE", SITE_URL.rstrip("/") + "/img").rstrip("/")
 DOW = "월화수목금토일"
 
 # 날짜별 카드 내용 (여행 페이지 '일자별 동선'과 맞춰 관리)
@@ -134,6 +135,7 @@ def build_card(db: Session, day: int) -> dict:
         names = [i.name.split(" (")[0] for i in left[:3]]
         left_txt = f"{len(left)}개 · " + ", ".join(names) + (" 등" if len(left) > 3 else "")
         return {
+            "day": 0,
             "header": "✈️ 내일 삿포로 출발!",
             "category": f"{_date_label(TRIP_DATES[0])} 1일차",
             "title": info["title"],
@@ -152,6 +154,7 @@ def build_card(db: Session, day: int) -> dict:
         raise HTTPException(400, "day는 0~4 사이여야 해요")
     info, ds = DAYS[day], TRIP_DATES[day - 1]
     return {
+        "day": day,
         "header": f"🗾 삿포로 {day}일차",
         "category": _date_label(ds),
         "title": info["title"],
@@ -172,8 +175,8 @@ def _template(card: dict) -> dict:
     url = SITE_URL.rstrip("/") + card["link_path"]
     link = {"web_url": url, "mobile_web_url": url}
     content = {"title": card["title"], "description": card["description"], "link": link}
-    if CARD_IMAGE:
-        content.update({"image_url": CARD_IMAGE, "image_width": 800, "image_height": 400})
+    content.update({"image_url": f"{CARD_IMAGE_BASE}/trip-card-day{card['day']}.jpg",
+                    "image_width": 800, "image_height": 400})
     return {
         "object_type": "feed",
         "content": content,
