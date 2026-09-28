@@ -20,6 +20,7 @@ from scheduler import start_scheduler
 from flights import router as flights_router
 from packing import router as packing_router
 from trip_brief import router as trip_brief_router
+from legal_card import router as legal_card_router
 from legal_review import build_search_router
 from photos import router as photos_router
 from social_auth import router as social_auth_router
@@ -56,6 +57,7 @@ app.include_router(google_auth_router)
 app.include_router(flights_router)
 app.include_router(packing_router)
 app.include_router(trip_brief_router)
+app.include_router(legal_card_router)
 app.include_router(build_search_router())
 app.include_router(photos_router)
 app.include_router(social_auth_router)
