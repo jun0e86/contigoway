@@ -13,6 +13,7 @@ from .case_api import CaseApiClient, Interpretation, Precedent
 from .config import Settings
 from .keywords import extract_keywords
 from .law_api import Article, LawApiError, LawClient
+from .anchors import match_anchor_refs
 
 _ARTICLE_RE = re.compile(r"제(\d+)조(?:의(\d+))?")
 _LAW_NAME_RE = re.compile(r"^([가-힣][가-힣ㆍ·A-Za-z0-9\s]{0,25}?법(?:\s*시행령|\s*시행규칙)?)\s*(.*)$")
@@ -175,6 +176,11 @@ async def search_situation(s: Settings, situation_text: str, max_keywords: int =
         for ref in set(_parse_relation_section(src.reason)):
             ref_count[ref] = ref_count.get(ref, 0) + w
     ranked_refs = sorted(ref_count.items(), key=lambda kv: -kv[1])[:top_refs]
+
+    # 상황 문장에 핵심 낱말이 있으면 대표 조문을 앞에 추가한다 (조문 원문은 아래에서 공식 API로 조회).
+    anchor_refs = match_anchor_refs(situation_text)
+    if anchor_refs:
+        ranked_refs = [(r, 0) for r in anchor_refs] + [(r, c) for r, c in ranked_refs if r not in anchor_refs]
 
     law_client, articles, errors, law_cache = LawClient(s), [], [], {}
     for ref, count in ranked_refs:
