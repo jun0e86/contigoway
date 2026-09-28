@@ -11,7 +11,7 @@ announcements.py
   POST   /announcements/{id}/activate   - 관리자 전용: 숨겼던 예전 공지 다시 게시(복구)
 """
 
-from datetime import date as date_cls
+from datetime import date as date_cls, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,6 +21,10 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Announcement, User
 from auth import get_current_user
+
+def _today_kst() -> date_cls:
+    return datetime.now(timezone(timedelta(hours=9))).date()
+
 
 router = APIRouter(prefix="/announcements", tags=["공지 팝업"])
 
@@ -67,7 +71,7 @@ def _serialize(a: Announcement) -> dict:
 def get_active(db: Session = Depends(get_db)):
     """is_active=True 이면서 오늘 날짜가 노출 기간(start_at~end_at) 안에 드는 공지 1건.
     기간이 비어있는 쪽은 제한 없음으로 취급. 인증 불필요."""
-    today = date_cls.today()
+    today = _today_kst()
     ann = (
         db.query(Announcement)
         .filter(Announcement.is_active.is_(True))
@@ -77,6 +81,22 @@ def get_active(db: Session = Depends(get_db)):
         .first()
     )
     return _serialize(ann) if ann else None
+
+
+@router.get("/active-list")
+def get_active_list(db: Session = Depends(get_db)):
+    """게시 중인 공지 전체 (먼저 올린 공지부터). 팝업을 순서대로 띄우는 용도. 인증 불필요."""
+    today = _today_kst()
+    anns = (
+        db.query(Announcement)
+        .filter(Announcement.is_active.is_(True))
+        .filter((Announcement.start_at.is_(None)) | (Announcement.start_at <= today))
+        .filter((Announcement.end_at.is_(None)) | (Announcement.end_at >= today))
+        .order_by(Announcement.created_at.asc())
+        .limit(20)
+        .all()
+    )
+    return [_serialize(a) for a in anns]
 
 
 @router.get("")
