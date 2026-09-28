@@ -119,7 +119,6 @@ def create_announcement(
         raise HTTPException(400, "제목과 내용을 입력해주세요")
     _validate_range(data.start_at, data.end_at)
 
-    db.query(Announcement).filter(Announcement.is_active.is_(True)).update({"is_active": False})
     ann = Announcement(
         title=data.title.strip(),
         content=data.content.strip(),
@@ -197,7 +196,6 @@ def activate(
     ann = db.query(Announcement).filter(Announcement.id == ann_id).first()
     if not ann:
         raise HTTPException(404, "공지를 찾을 수 없습니다")
-    db.query(Announcement).filter(Announcement.is_active.is_(True)).update({"is_active": False})
     ann.is_active = True
     db.commit()
     return {"message": "공지가 다시 게시되었습니다"}
