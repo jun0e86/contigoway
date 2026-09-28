@@ -8,10 +8,18 @@ trip_brief.py
   - 12/15 20:00  출발 전날 카드: 내일 일정 + 아직 안 챙긴 준비물
   - 12/16~12/19 07:00  당일 카드: 날씨 · 일정 · 집합/이동 · 숙소 · 주의사항
 
+자동 점검 (같은 곳에서 등록)
+  - 매일 04:10  카카오 토큰 점검·갱신. 카카오 리프레시 토큰은 약 2달이면 만료되고, 갱신할 때
+    남은 기간이 1달 미만일 때만 새로 내려온다. 첫 발송(12/15)까지 석 달 가까이 걸려서
+    이 점검이 없으면 그 전에 만료돼 카드가 조용히 안 갈 수 있다.
+
 수동 (로그인 필요)
   GET  /trip-brief/preview?day=2        카드 내용 미리보기(JSON)
   POST /trip-brief/test?day=2           내 카카오톡으로만 테스트 발송 (day=0은 전날 카드)
   POST /trip-brief/send-all?day=2       관리자: 연결된 모든 회원에게 발송
+  GET  /trip-brief/kakao-status         관리자: 회원별 카카오 토큰 만료일, 12/15 전 만료 위험 여부
+  GET  /trip-brief/jobs                 관리자: 등록된 자동 발송·점검 예약 목록
+  POST /trip-brief/kakao-keepalive      관리자: 카카오 토큰 점검을 지금 실행
 
 선택 환경변수
   KAKAO_CARD_IMAGE_BASE  카드 상단 이미지 폴더 URL (기본: https://contigoway.com/img)
@@ -19,7 +27,7 @@ trip_brief.py
 
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 import requests
@@ -219,16 +227,41 @@ def send_to_all(day: int):
         db.close()
 
 
+KST = ZoneInfo("Asia/Seoul")
+FIRST_CARD_AT = datetime(2026, 12, 15, 20, 0)   # 첫 자동 발송 시각 (한국시간)
+
+
+def kakao_keepalive():
+    """카카오 토큰 점검. 액세스 토큰(약 6시간)이 지났으면 리프레시 토큰으로 갱신하고,
+    리프레시 토큰의 남은 기간이 1달 미만이면 카카오가 새 리프레시 토큰을 내려주므로 자동으로 저장된다.
+    실패(리프레시 토큰 만료)하면 로그에 남긴다. 그 경우 해당 회원이 카카오로 다시 로그인해야 한다."""
+    db = SessionLocal()
+    try:
+        for acct in _recipients(db):
+            try:
+                get_kakao_access_token(db, acct)
+                print(f"[trip-brief] 카카오 토큰 점검 user_id={acct.user_id}: 정상")
+            except Exception as e:
+                print(f"[trip-brief] 카카오 토큰 점검 실패 user_id={acct.user_id}: {e} → 카카오로 다시 로그인 필요")
+    finally:
+        db.close()
+
+
 def register_trip_jobs(scheduler):
-    """scheduler.py의 start_scheduler()에서 호출. 지난 시각은 건너뜀."""
+    """scheduler.py의 start_scheduler()에서 호출. 지난 시각은 건너뜀. 등록 결과는 로그에 남긴다."""
     plan = [(0, "2026-12-15 20:00")] + [(i + 1, f"{d} 07:00") for i, d in enumerate(TRIP_DATES)]
-    now = datetime.now(ZoneInfo("Asia/Seoul")).replace(tzinfo=None)  # 스케줄러와 같은 한국시간 기준
+    now = datetime.now(KST).replace(tzinfo=None)  # 스케줄러와 같은 한국시간 기준
     for day, when in plan:
         run_at = datetime.strptime(when, "%Y-%m-%d %H:%M")
         if run_at <= now:
+            print(f"[trip-brief] 예약 건너뜀(이미 지남) day={day} {when}")
             continue
         scheduler.add_job(send_to_all, "date", run_date=run_at, args=[day],
                           id=f"trip_brief_day{day}", replace_existing=True, misfire_grace_time=3600)
+        print(f"[trip-brief] 예약 등록 day={day} {when} (KST)")
+    scheduler.add_job(kakao_keepalive, "cron", hour=4, minute=10, id="kakao_keepalive",
+                      replace_existing=True, misfire_grace_time=3600)
+    print("[trip-brief] 예약 등록 카카오 토큰 점검 매일 04:10 (KST)")
 
 
 # ---------------------------------------------------------------------------
@@ -257,3 +290,58 @@ def send_all_now(day: int = Query(default=1, ge=0, le=4), current_user=Depends(g
         raise HTTPException(403, "관리자만 전체 발송할 수 있어요")
     send_to_all(day)
     return {"ok": True, "day": day}
+
+
+def _require_admin(user):
+    if getattr(user, "role", "") != "admin":
+        raise HTTPException(403, "관리자만 볼 수 있어요")
+
+
+def _to_kst_naive(dt):
+    """DB에 저장된 시각을 한국시간으로 바꾼다. 시간대 정보가 없으면 UTC로 본다(서버 기본값)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(KST).replace(tzinfo=None)
+
+
+@router.get("/kakao-status")
+def kakao_status(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """회원별 카카오 리프레시 토큰 만료일. before_first_card=True 이면 12/15 첫 발송 전에 만료된다는 뜻."""
+    _require_admin(current_user)
+    now = datetime.now(KST).replace(tzinfo=None)
+    rows = []
+    for a in db.query(SocialAccount).filter_by(provider="kakao").all():
+        exp = _to_kst_naive(getattr(a, "refresh_expires_at", None))
+        rows.append({
+            "user_id": a.user_id,
+            "talk_message": bool(a.scopes and "talk_message" in a.scopes),
+            "refresh_expires_at": exp.strftime("%Y-%m-%d %H:%M") if exp else None,
+            "days_left": (exp - now).days if exp else None,
+            "before_first_card": (exp < FIRST_CARD_AT) if exp else None,
+        })
+    return {
+        "now": now.strftime("%Y-%m-%d %H:%M"),
+        "first_card_at": FIRST_CARD_AT.strftime("%Y-%m-%d %H:%M"),
+        "days_until_first_card": (FIRST_CARD_AT - now).days,
+        "accounts": rows,
+    }
+
+
+@router.get("/jobs")
+def list_jobs(current_user=Depends(get_current_user)):
+    """이 서버 프로세스에 실제로 등록된 예약 목록 (자동 발송 예약이 살아 있는지 확인용)."""
+    _require_admin(current_user)
+    from scheduler import _scheduler
+    return {
+        "running": _scheduler.running,
+        "jobs": [{"id": j.id, "next_run": str(getattr(j, "next_run_time", None))} for j in _scheduler.get_jobs()],
+    }
+
+
+@router.post("/kakao-keepalive")
+def keepalive_now(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _require_admin(current_user)
+    kakao_keepalive()
+    return kakao_status(db=db, current_user=current_user)
