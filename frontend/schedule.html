@@ -42,7 +42,12 @@
   .nav-links .greet{color:var(--black);font-weight:600}
   .logout-link{color:var(--blue);cursor:pointer}
 
-  main{max-width:760px;margin:0 auto;padding:0 24px 100px}
+  main{max-width:760px;margin:0 auto;padding:0 24px 100px;transition:max-width .2s ease}
+  main.width-narrow{max-width:560px}
+  main.width-wide{max-width:1100px}
+  .width-toggle{display:flex;background:var(--panel);border-radius:980px;padding:4px;margin:0 auto 14px;width:fit-content;gap:2px}
+  .width-toggle button{border:none;background:none;padding:6px 13px;border-radius:980px;font-size:.75rem;font-weight:600;color:var(--gray);cursor:pointer}
+  .width-toggle button.active{background:#fff;color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.1)}
 
   .page-header{display:flex;justify-content:space-between;align-items:center;padding:36px 0 18px}
   .page-header h1{font-size:1.5rem;font-weight:700}
@@ -60,14 +65,36 @@
   .dot.mine{background:var(--blue)}
   .dot.partner{background:var(--pink)}
 
-  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-  .weekday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+  .weekday-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:6px}
   .weekday-row div{text-align:center;font-size:.75rem;color:var(--gray-light);font-weight:600}
-  .day-cell{aspect-ratio:1;border-radius:12px;background:var(--panel);padding:6px;cursor:pointer;display:flex;flex-direction:column;position:relative}
+  .weekday-row div.sun{color:var(--pink)}
+  .weekday-row div.sat{color:var(--blue)}
+  .day-cell{aspect-ratio:1;border-radius:12px;background:var(--panel);padding:6px;cursor:pointer;display:flex;flex-direction:column;position:relative;min-width:0;overflow:hidden}
   .day-cell.empty{background:none;cursor:default}
   .day-cell.today{outline:2px solid var(--blue)}
   .day-cell .num{font-size:.8rem;font-weight:600;color:var(--gray)}
+  .day-cell .num.sun,.day-cell .num.holiday{color:var(--pink)}
+  .day-cell .num.sat{color:var(--blue)}
+  .day-cell .holiday-name{font-size:.6rem;color:var(--pink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
   .day-cell .dots{display:flex;gap:3px;margin-top:auto;flex-wrap:wrap}
+
+  .display-toggle{display:flex;background:var(--panel);border-radius:980px;padding:4px;margin:0 auto 14px;width:fit-content;gap:2px}
+  .display-toggle button{border:none;background:none;padding:6px 13px;border-radius:980px;font-size:.75rem;font-weight:600;color:var(--gray);cursor:pointer;white-space:nowrap}
+  .display-toggle button.active{background:#fff;color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+  .calendar-grid.mode-stacked .day-cell,
+  .calendar-grid.mode-detailed .day-cell{aspect-ratio:auto;min-height:78px}
+  .day-cell .bars{display:flex;flex-direction:column;gap:3px;margin-top:auto;min-width:0;width:100%}
+  .event-bar{height:5px;border-radius:3px;background:var(--blue);min-width:0}
+  .event-bar.partner{background:var(--pink)}
+  .event-pill{font-size:.6rem;line-height:1.3;padding:1px 5px;border-radius:4px;background:rgba(0,113,227,.12);color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%}
+  .event-pill.partner{background:rgba(255,45,85,.12);color:var(--pink)}
+  .day-cell .overflow-more{font-size:.6rem;color:var(--gray-light)}
+
+  .agenda-list{display:flex;flex-direction:column;gap:20px}
+  .agenda-group .agenda-date{font-size:.8rem;font-weight:700;color:var(--gray);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+  .agenda-empty{text-align:center;color:var(--gray-light);font-size:.85rem;padding:40px 0}
 
   .new-btn{background:var(--black);color:#fff;border:none;border-radius:980px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer}
 
@@ -104,6 +131,7 @@
   .url-box{display:flex;gap:6px;margin-bottom:8px}
   .url-box input{flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.78rem;background:var(--panel);color:var(--gray)}
   .url-box button{padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:.78rem;cursor:pointer}
+  .progress-wrap,#progressDetail{display:none !important}
 </style>
 </head>
 <body>
@@ -150,12 +178,19 @@
   <div class="progress-detail" id="progressDetail"></div>
 </div>
 
-<main>
+<main id="mainEl">
   <div class="page-header">
     <h1>스케줄</h1>
-    <div class="view-toggle">
-      <button id="btnViewMine" onclick="switchView('mine')">내 스케줄</button>
-      <button id="btnViewCouple" onclick="switchView('couple')">커플 스케줄</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="width-toggle" id="widthToggle">
+        <button id="wNarrow" onclick="switchWidth('narrow')">좁게</button>
+        <button id="wNormal" onclick="switchWidth('normal')">보통</button>
+        <button id="wWide" onclick="switchWidth('wide')">넓게</button>
+      </div>
+      <div class="view-toggle">
+        <button id="btnViewMine" onclick="switchView('mine')">내 스케줄</button>
+        <button id="btnViewCouple" onclick="switchView('couple')">커플 스케줄</button>
+      </div>
     </div>
   </div>
 
@@ -170,10 +205,18 @@
     <span><span class="dot partner"></span>파트너 일정</span>
   </div>
 
-  <div class="weekday-row">
-    <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+  <div class="display-toggle" id="displayToggle">
+    <button id="dmCompact" onclick="switchDisplayMode('compact')">축소형</button>
+    <button id="dmStacked" onclick="switchDisplayMode('stacked')">스택형</button>
+    <button id="dmDetailed" onclick="switchDisplayMode('detailed')">상세형</button>
+    <button id="dmList" onclick="switchDisplayMode('list')">목록형</button>
+  </div>
+
+  <div class="weekday-row" id="weekdayRow">
+    <div class="sun">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="sat">토</div>
   </div>
   <div class="calendar-grid" id="calendarGrid"></div>
+  <div class="agenda-list" id="agendaList" style="display:none"></div>
 
   <div class="sub-section">
     <h3>📅 캘린더 구독</h3>
@@ -274,8 +317,22 @@ async function authFetch(path, opts={}){
   return r;
 }
 
+const KR_HOLIDAYS = {
+  '2026-01-01':'신정','2026-02-16':'설날연휴','2026-02-17':'설날','2026-02-18':'설날연휴',
+  '2026-03-01':'삼일절','2026-03-02':'대체공휴일','2026-05-05':'어린이날','2026-05-24':'부처님오신날',
+  '2026-05-25':'대체공휴일','2026-06-06':'현충일','2026-08-15':'광복절','2026-08-17':'대체공휴일',
+  '2026-09-24':'추석연휴','2026-09-25':'추석','2026-09-26':'추석연휴','2026-10-03':'개천절',
+  '2026-10-09':'한글날','2026-12-25':'크리스마스',
+  '2027-01-01':'신정','2027-02-06':'설날연휴','2027-02-07':'설날','2027-02-08':'설날연휴',
+  '2027-03-01':'삼일절','2027-05-05':'어린이날','2027-06-06':'현충일','2027-08-15':'광복절',
+  '2027-09-14':'추석연휴','2027-09-15':'추석','2027-09-16':'추석연휴','2027-10-03':'개천절',
+  '2027-10-09':'한글날','2027-12-25':'크리스마스'
+};
+
 const params = new URLSearchParams(location.search);
 let viewMode = params.get('view') === 'couple' ? 'couple' : 'mine';
+let displayMode = localStorage.getItem('calDisplayMode') || 'compact';
+let widthMode = localStorage.getItem('calWidthMode') || 'normal';
 let curYear, curMonth;
 let monthEvents = [];
 let currentDayDate = null;
@@ -296,6 +353,8 @@ let currentDetail = null;
     }
   }catch(e){}
   updateViewToggleUI();
+  updateDisplayToggleUI();
+  updateWidthToggleUI();
   await loadMonth();
   loadFeedToken();
   loadGoogleStatus();
@@ -310,6 +369,39 @@ function updateViewToggleUI(){
   document.getElementById('btnViewMine').classList.toggle('active', viewMode==='mine');
   document.getElementById('btnViewCouple').classList.toggle('active', viewMode==='couple');
   document.getElementById('legendRow').style.display = viewMode==='couple' ? 'flex' : 'none';
+}
+
+const WIDTH_MODE_BTN_IDS = {narrow:'wNarrow', normal:'wNormal', wide:'wWide'};
+function switchWidth(m){
+  widthMode = m;
+  localStorage.setItem('calWidthMode', m);
+  updateWidthToggleUI();
+}
+function updateWidthToggleUI(){
+  Object.entries(WIDTH_MODE_BTN_IDS).forEach(([mode, id])=>{
+    document.getElementById(id).classList.toggle('active', widthMode===mode);
+  });
+  const mainEl = document.getElementById('mainEl');
+  mainEl.classList.remove('width-narrow','width-wide');
+  if(widthMode==='narrow') mainEl.classList.add('width-narrow');
+  if(widthMode==='wide') mainEl.classList.add('width-wide');
+}
+
+const DISPLAY_MODE_BTN_IDS = {compact:'dmCompact', stacked:'dmStacked', detailed:'dmDetailed', list:'dmList'};
+function switchDisplayMode(m){
+  displayMode = m;
+  localStorage.setItem('calDisplayMode', m);
+  updateDisplayToggleUI();
+  renderCalendar();
+}
+function updateDisplayToggleUI(){
+  Object.entries(DISPLAY_MODE_BTN_IDS).forEach(([mode, id])=>{
+    document.getElementById(id).classList.toggle('active', displayMode===mode);
+  });
+  const isList = displayMode === 'list';
+  document.getElementById('weekdayRow').style.display = isList ? 'none' : 'grid';
+  document.getElementById('calendarGrid').style.display = isList ? 'none' : 'grid';
+  document.getElementById('agendaList').style.display = isList ? 'flex' : 'none';
 }
 
 function changeMonth(delta){
@@ -328,7 +420,10 @@ async function loadMonth(){
 }
 
 function renderCalendar(){
+  if(displayMode === 'list'){ renderAgenda(); return; }
+
   const grid = document.getElementById('calendarGrid');
+  grid.className = 'calendar-grid mode-' + displayMode;
   const firstDay = new Date(curYear, curMonth-1, 1);
   const startWeekday = firstDay.getDay();
   const daysInMonth = new Date(curYear, curMonth, 0).getDate();
@@ -338,17 +433,72 @@ function renderCalendar(){
   for(let i=0;i<startWeekday;i++) html += '<div class="day-cell empty"></div>';
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayEvents = monthEvents.filter(e=>e.event_date===dateStr);
+    const dayEvents = monthEvents.filter(e=>e.event_date===dateStr)
+      .sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
     const isToday = dateStr === todayStr;
-    const dots = dayEvents.slice(0,4).map(e=>{
-      const cls = viewMode==='couple' ? (e.is_mine ? 'mine' : 'partner') : 'mine';
-      return `<span class="dot ${cls}"></span>`;
-    }).join('');
+    const owner = e => viewMode==='couple' ? (e.is_mine ? '' : 'partner') : '';
+    const weekday = (startWeekday + d - 1) % 7;
+    const holidayName = KR_HOLIDAYS[dateStr];
+    let numCls = '';
+    if(holidayName || weekday===0) numCls = 'sun';
+    else if(weekday===6) numCls = 'sat';
+    if(holidayName) numCls += ' holiday';
+
+    let body;
+    if(displayMode === 'stacked'){
+      const maxBars = 4;
+      const bars = dayEvents.slice(0,maxBars).map(e=>`<div class="event-bar ${owner(e)}"></div>`).join('');
+      const rest = dayEvents.length - maxBars;
+      body = `<div class="bars">${bars}${rest>0?`<div class="overflow-more">+${rest}개</div>`:''}</div>`;
+    }else if(displayMode === 'detailed'){
+      const maxPills = 3;
+      const pills = dayEvents.slice(0,maxPills).map(e=>`<div class="event-pill ${owner(e)}">${e.title}</div>`).join('');
+      const rest = dayEvents.length - maxPills;
+      body = `<div class="bars">${pills}${rest>0?`<div class="overflow-more">+${rest}개</div>`:''}</div>`;
+    }else{ // compact
+      const dots = dayEvents.slice(0,4).map(e=>{
+        const cls = viewMode==='couple' ? (e.is_mine ? 'mine' : 'partner') : 'mine';
+        return `<span class="dot ${cls}"></span>`;
+      }).join('');
+      body = `<div class="dots">${dots}</div>`;
+    }
+
+    const holidayLabel = (holidayName && displayMode==='detailed') ? `<div class="holiday-name">${holidayName}</div>` : '';
     html += `<div class="day-cell${isToday?' today':''}" onclick="openDayOverlay('${dateStr}')">
-      <span class="num">${d}</span><div class="dots">${dots}</div>
+      <span class="num ${numCls}">${d}</span>${holidayLabel}${body}
     </div>`;
   }
   grid.innerHTML = html;
+}
+
+function renderAgenda(){
+  const box = document.getElementById('agendaList');
+  const byDate = {};
+  monthEvents.forEach(e=>{ (byDate[e.event_date] = byDate[e.event_date] || []).push(e); });
+  const dates = Object.keys(byDate).sort();
+
+  if(!dates.length){
+    box.innerHTML = '<div class="agenda-empty">이 달엔 일정이 없어요</div>';
+    return;
+  }
+
+  const weekdayLabels = ['일','월','화','수','목','금','토'];
+  box.innerHTML = dates.map(dateStr=>{
+    const evs = byDate[dateStr].sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
+    const items = evs.map(e=>{
+      const ownerCls = viewMode==='couple' ? (e.is_mine ? 'mine':'partner') : 'mine';
+      const ownerLabel = viewMode==='couple' ? (e.is_mine ? '나' : e.owner_full_name) : '';
+      return `
+      <div class="day-event ${ownerCls}" onclick='openEventDetail(${JSON.stringify(e)})'>
+        ${ownerLabel ? `<div class="ev-owner">${ownerLabel}</div>` : ''}
+        <div class="ev-title">${e.title}</div>
+        ${e.event_time ? `<div class="ev-time">${e.event_time}</div>` : ''}
+      </div>`;
+    }).join('');
+    const d = new Date(dateStr + 'T00:00:00');
+    const label = `${Number(dateStr.slice(5,7))}월 ${Number(dateStr.slice(8,10))}일 (${weekdayLabels[d.getDay()]})`;
+    return `<div class="agenda-group"><div class="agenda-date">${label}</div>${items}</div>`;
+  }).join('');
 }
 
 function openDayOverlay(dateStr){
@@ -523,5 +673,6 @@ async function disconnectGoogle(){
 }
 </script>
 
+<script src="/visit-counter.js"></script>
 </body>
 </html>
