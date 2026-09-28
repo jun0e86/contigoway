@@ -174,16 +174,12 @@ class CaseApiClient:
         except OSError:
             pass
 
-    async def search_precedents(self, keyword: str, display: int = 10, body: bool = False) -> list[Precedent]:
-        # body=True: 사건명이 아니라 판시요지·판시내용 본문에서 검색 (search=2)
-        path = self._cache_path("prec_body" if body else "prec_search", keyword)
+    async def search_precedents(self, keyword: str, display: int = 10) -> list[Precedent]:
+        path = self._cache_path("prec_search", keyword)
         cached = self._read_cache(path, _LIST_TTL_MIN)
         if cached is not None:
             return [Precedent(**x) for x in cached]
-        params = {"target": "prec", "query": keyword, "display": display}
-        if body:
-            params["search"] = 2
-        data = await self._get_json("lawSearch.do", params)
+        data = await self._get_json("lawSearch.do", {"target": "prec", "query": keyword, "display": display})
         items = [i for i in (_prec_from_search(d) for d in _unwrap_list(data)) if i.id]
         self._write_cache(path, [asdict(i) for i in items])
         return items

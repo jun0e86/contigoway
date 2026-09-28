@@ -148,15 +148,6 @@ async def search_situation(s: Settings, situation_text: str, max_keywords: int =
     filtered_pairs = [(_domain_filter(p), _domain_filter(e)) for p, e in pairs]
     precs = _rank([p for p, _ in filtered_pairs], top_n, anchor)
     expcs = _rank([e for _, e in filtered_pairs], top_n, anchor)
-    if not precs:
-        # 사건명 검색으로는 관련 판례가 하나도 남지 않았다.
-        # 가장 구체적인 키워드로 판시요지·판시내용 '본문 검색'을 한 번 더 시도한다.
-        # (결과가 많을 수 있어 넉넉히 받아 도메인 필터로 다시 걸러낸다)
-        try:
-            body_precs = await client.search_precedents(search_keywords[0], display=max(per_keyword, 30), body=True)
-            precs = _rank([_domain_filter(body_precs)], top_n, anchor)
-        except Exception:
-            precs = []
     if not precs and not expcs:
         # 도메인 필터링으로 전부 걸러졌을 수 있으니, 필터 없이 한 번 더 시도(완전히 빈 결과보다는 낫다)
         precs = _rank([p for p, _ in pairs], top_n, anchor)
