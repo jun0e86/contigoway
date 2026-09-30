@@ -250,7 +250,8 @@
     </div>
     <div class="field"><label>제목</label><input type="text" id="evTitle"></div>
     <div class="field"><label>날짜</label><input type="date" id="evDate"></div>
-    <div class="field"><label>시간 (선택)</label><input type="time" id="evTime"></div>
+    <div class="field"><label>종료일 (선택 · 며칠짜리 일정)</label><input type="date" id="evEndDate"></div>
+    <div class="field"><label>시간 (선택)</label><input type="time" id="evTime" oninput="syncEndDateState()"></div>
     <div class="field"><label>메모 (선택)</label><textarea id="evDesc"></textarea></div>
     <div class="sheet-actions">
       <button class="btn-danger" id="evDeleteBtn" style="display:none" onclick="deleteEvent()">삭제</button>
@@ -419,6 +420,39 @@ async function loadMonth(){
   renderCalendar();
 }
 
+// ---- 며칠짜리 일정 / 안전한 HTML 출력 도우미 ----
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function evLastDate(e){ return (e.end_date && e.end_date > e.event_date) ? e.end_date : e.event_date; }
+function eventsOnDate(dateStr){
+  return monthEvents
+    .filter(e=>e.event_date <= dateStr && dateStr <= evLastDate(e))
+    .sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
+}
+function datesOfEvent(e){
+  const monthPrefix = `${curYear}-${String(curMonth).padStart(2,'0')}-`;
+  const out = [];
+  const d = new Date(e.event_date + 'T12:00:00');
+  const last = new Date(evLastDate(e) + 'T12:00:00');
+  for(let i=0; i<400 && d<=last; i++){
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(ds.startsWith(monthPrefix)) out.push(ds);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+function openEventById(id){
+  const e = monthEvents.find(x=>x.id===id);
+  if(e) openEventDetail(e);
+}
+function syncEndDateState(){
+  const hasTime = !!document.getElementById('evTime').value;
+  const end = document.getElementById('evEndDate');
+  if(hasTime) end.value = '';
+  end.disabled = hasTime;
+}
+
 function renderCalendar(){
   if(displayMode === 'list'){ renderAgenda(); return; }
 
@@ -433,8 +467,7 @@ function renderCalendar(){
   for(let i=0;i<startWeekday;i++) html += '<div class="day-cell empty"></div>';
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayEvents = monthEvents.filter(e=>e.event_date===dateStr)
-      .sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
+    const dayEvents = eventsOnDate(dateStr);
     const isToday = dateStr === todayStr;
     const owner = e => viewMode==='couple' ? (e.is_mine ? '' : 'partner') : '';
     const weekday = (startWeekday + d - 1) % 7;
@@ -452,7 +485,7 @@ function renderCalendar(){
       body = `<div class="bars">${bars}${rest>0?`<div class="overflow-more">+${rest}개</div>`:''}</div>`;
     }else if(displayMode === 'detailed'){
       const maxPills = 3;
-      const pills = dayEvents.slice(0,maxPills).map(e=>`<div class="event-pill ${owner(e)}">${e.title}</div>`).join('');
+      const pills = dayEvents.slice(0,maxPills).map(e=>`<div class="event-pill ${owner(e)}">${dateStr!==e.event_date?'↳ ':''}${esc(e.title)}</div>`).join('');
       const rest = dayEvents.length - maxPills;
       body = `<div class="bars">${pills}${rest>0?`<div class="overflow-more">+${rest}개</div>`:''}</div>`;
     }else{ // compact
@@ -474,7 +507,9 @@ function renderCalendar(){
 function renderAgenda(){
   const box = document.getElementById('agendaList');
   const byDate = {};
-  monthEvents.forEach(e=>{ (byDate[e.event_date] = byDate[e.event_date] || []).push(e); });
+  monthEvents.forEach(e=>{
+    datesOfEvent(e).forEach(ds=>{ (byDate[ds] = byDate[ds] || []).push(e); });
+  });
   const dates = Object.keys(byDate).sort();
 
   if(!dates.length){
@@ -489,10 +524,11 @@ function renderAgenda(){
       const ownerCls = viewMode==='couple' ? (e.is_mine ? 'mine':'partner') : 'mine';
       const ownerLabel = viewMode==='couple' ? (e.is_mine ? '나' : e.owner_full_name) : '';
       return `
-      <div class="day-event ${ownerCls}" onclick='openEventDetail(${JSON.stringify(e)})'>
-        ${ownerLabel ? `<div class="ev-owner">${ownerLabel}</div>` : ''}
-        <div class="ev-title">${e.title}</div>
-        ${e.event_time ? `<div class="ev-time">${e.event_time}</div>` : ''}
+      <div class="day-event ${ownerCls}" onclick="openEventById(${e.id})">
+        ${ownerLabel ? `<div class="ev-owner">${esc(ownerLabel)}</div>` : ''}
+        <div class="ev-title">${esc(e.title)}</div>
+        ${e.event_time ? `<div class="ev-time">${esc(e.event_time)}</div>` : ''}
+        ${(e.end_date && e.end_date > e.event_date) ? `<div class="ev-time">${e.event_date} ~ ${e.end_date}</div>` : ''}
       </div>`;
     }).join('');
     const d = new Date(dateStr + 'T00:00:00');
@@ -504,7 +540,7 @@ function renderAgenda(){
 function openDayOverlay(dateStr){
   currentDayDate = dateStr;
   document.getElementById('dayTitle').textContent = dateStr;
-  const dayEvents = monthEvents.filter(e=>e.event_date===dateStr).sort((a,b)=>(a.event_time||'').localeCompare(b.event_time||''));
+  const dayEvents = eventsOnDate(dateStr);
   const box = document.getElementById('dayEventList');
   if(!dayEvents.length){
     box.innerHTML = '<div class="empty-day">이 날짜엔 일정이 없어요</div>';
@@ -513,10 +549,11 @@ function openDayOverlay(dateStr){
       const ownerCls = viewMode==='couple' ? (e.is_mine ? 'mine':'partner') : 'mine';
       const ownerLabel = viewMode==='couple' ? (e.is_mine ? '나' : e.owner_full_name) : '';
       return `
-      <div class="day-event ${ownerCls}" onclick='openEventDetail(${JSON.stringify(e)})'>
-        ${ownerLabel ? `<div class="ev-owner">${ownerLabel}</div>` : ''}
-        <div class="ev-title">${e.title}</div>
-        ${e.event_time ? `<div class="ev-time">${e.event_time}</div>` : ''}
+      <div class="day-event ${ownerCls}" onclick="openEventById(${e.id})">
+        ${ownerLabel ? `<div class="ev-owner">${esc(ownerLabel)}</div>` : ''}
+        <div class="ev-title">${esc(e.title)}</div>
+        ${e.event_time ? `<div class="ev-time">${esc(e.event_time)}</div>` : ''}
+        ${(e.end_date && e.end_date > e.event_date) ? `<div class="ev-time">${e.event_date} ~ ${e.end_date}</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -530,6 +567,8 @@ function openEventEditor(event, defaultDate){
   document.getElementById('evTitle').value = event ? event.title : '';
   document.getElementById('evDate').value = event ? event.event_date : (defaultDate || new Date().toISOString().slice(0,10));
   document.getElementById('evTime').value = event ? (event.event_time||'') : '';
+  document.getElementById('evEndDate').value = event ? (event.end_date||'') : '';
+  syncEndDateState();
   document.getElementById('evDesc').value = event ? (event.description||'') : '';
   document.getElementById('evDeleteBtn').style.display = event ? 'block' : 'none';
   document.getElementById('eventOverlay').classList.add('open');
@@ -540,9 +579,11 @@ async function saveEvent(){
   const title = document.getElementById('evTitle').value.trim();
   const event_date = document.getElementById('evDate').value;
   const event_time = document.getElementById('evTime').value || null;
+  const end_date = (!event_time && document.getElementById('evEndDate').value) || null;
   const description = document.getElementById('evDesc').value.trim() || null;
   if(!title || !event_date){ alert('제목과 날짜를 입력해주세요'); return; }
-  const payload = {title, event_date, event_time, description};
+  if(end_date && end_date < event_date){ alert('종료일은 시작 날짜보다 빠를 수 없어요'); return; }
+  const payload = {title, event_date, event_time, end_date, description};
   const path = editingEventId ? '/schedule/'+editingEventId : '/schedule';
   const method = editingEventId ? 'PUT' : 'POST';
   const r = await authFetch(path, {method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
@@ -564,7 +605,7 @@ async function deleteEvent(){
 function openEventDetail(e){
   currentDetail = e;
   document.getElementById('detTitle').textContent = e.title;
-  document.getElementById('detWhen').textContent = e.event_date + (e.event_time ? ' ' + e.event_time : '');
+  document.getElementById('detWhen').textContent = e.event_date + ((e.end_date && e.end_date > e.event_date) ? ' ~ ' + e.end_date : '') + (e.event_time ? ' ' + e.event_time : '');
   document.getElementById('detDesc').textContent = e.description || '';
   document.getElementById('detOwnerActions').style.display = (viewMode==='couple' && !e.is_mine) ? 'none' : 'flex';
   document.getElementById('detailOverlay').classList.add('open');

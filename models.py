@@ -129,6 +129,8 @@ class ScheduleEvent(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     event_date = Column(Date, nullable=False, index=True)
+    # 며칠짜리 일정의 마지막 날(포함). NULL이면 event_date 하루짜리
+    end_date = Column(Date, nullable=True)
     # HH:MM 형식의 간단한 시간 표기 (선택 입력)
     event_time = Column(String(10), nullable=True)
     google_event_id = Column(String(255), nullable=True, index=True)

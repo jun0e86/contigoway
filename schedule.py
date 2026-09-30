@@ -32,6 +32,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -48,6 +49,7 @@ class ScheduleCreate(BaseModel):
     description: Optional[str] = None
     event_date: date_cls
     event_time: Optional[str] = None  # "HH:MM"
+    end_date: Optional[date_cls] = None  # 며칠짜리 일정의 마지막 날(포함). 비우면 하루짜리
 
 
 class ScheduleOut(BaseModel):
@@ -56,6 +58,7 @@ class ScheduleOut(BaseModel):
     description: Optional[str]
     event_date: date_cls
     event_time: Optional[str]
+    end_date: Optional[date_cls] = None
 
     class Config:
         from_attributes = True
@@ -89,7 +92,7 @@ def list_month_events(
         db.query(ScheduleEvent)
         .filter(
             ScheduleEvent.user_id == current_user.id,
-            ScheduleEvent.event_date >= start,
+            func.coalesce(ScheduleEvent.end_date, ScheduleEvent.event_date) >= start,
             ScheduleEvent.event_date <= end,
         )
         .order_by(ScheduleEvent.event_date, ScheduleEvent.event_time)
@@ -115,7 +118,7 @@ def list_couple_month_events(
         .join(User, ScheduleEvent.user_id == User.id)
         .filter(
             User.status == "active",
-            ScheduleEvent.event_date >= start,
+            func.coalesce(ScheduleEvent.end_date, ScheduleEvent.event_date) >= start,
             ScheduleEvent.event_date <= end,
         )
         .order_by(ScheduleEvent.event_date, ScheduleEvent.event_time)
@@ -128,6 +131,7 @@ def list_couple_month_events(
             description=ev.description,
             event_date=ev.event_date,
             event_time=ev.event_time,
+            end_date=ev.end_date,
             owner_username=owner.username,
             owner_full_name=owner.full_name,
             is_mine=(owner.id == current_user.id),
@@ -212,6 +216,19 @@ def _get_owned_event(event_id: int, db: Session, current_user: User) -> Schedule
     return event
 
 
+def _clean_end_date(data: ScheduleCreate) -> Optional[date_cls]:
+    """종료일 정리. 시간이 있는 일정은 하루짜리로 취급하고, 시작일보다 빠르거나 너무 길면 오류."""
+    if data.event_time or not data.end_date:
+        return None
+    if data.end_date < data.event_date:
+        raise HTTPException(400, "종료일은 시작 날짜보다 빠를 수 없습니다")
+    if data.end_date == data.event_date:
+        return None
+    if (data.end_date - data.event_date).days > 366:
+        raise HTTPException(400, "일정 기간은 최대 1년까지 가능합니다")
+    return data.end_date
+
+
 @router.get("/{event_id}", response_model=ScheduleOut)
 def get_event(
     event_id: int,
@@ -235,6 +252,7 @@ def create_event(
         description=data.description,
         event_date=data.event_date,
         event_time=data.event_time,
+        end_date=_clean_end_date(data),
     )
     db.add(event)
     db.commit()
@@ -253,10 +271,12 @@ def update_event(
     event = _get_owned_event(event_id, db, current_user)
     if not data.title.strip():
         raise HTTPException(400, "제목을 입력해주세요")
+    end_date = _clean_end_date(data)
     event.title = data.title.strip()
     event.description = data.description
     event.event_date = data.event_date
     event.event_time = data.event_time
+    event.end_date = end_date
     db.commit()
     db.refresh(event)
     push_to_google(db, current_user.id, event, action="update")
@@ -295,7 +315,12 @@ def share_text(
     """
     event = _get_owned_event(event_id, db, current_user)
     time_part = f" {event.event_time}" if event.event_time else ""
-    lines = [f"📅 {event.event_date.isoformat()}{time_part}", f"{event.title}"]
+    range_part = (
+        f" ~ {event.end_date.isoformat()}"
+        if (event.end_date and event.end_date > event.event_date)
+        else ""
+    )
+    lines = [f"📅 {event.event_date.isoformat()}{range_part}{time_part}", f"{event.title}"]
     if event.description:
         lines.append(event.description)
     lines.append("- contigoway 일정 공유")
@@ -314,7 +339,9 @@ def _event_datetimes(event: ScheduleEvent):
         except ValueError:
             pass
     start = datetime.combine(event.event_date, datetime.min.time())
-    return start, start + timedelta(days=1), True
+    last = event.end_date if (event.end_date and event.end_date > event.event_date) else event.event_date
+    end = datetime.combine(last, datetime.min.time()) + timedelta(days=1)  # 종일 일정의 end는 마지막 날의 다음날
+    return start, end, True
 
 
 @router.get("/{event_id}/google-calendar-link")
