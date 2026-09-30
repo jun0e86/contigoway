@@ -217,8 +217,8 @@ def _get_owned_event(event_id: int, db: Session, current_user: User) -> Schedule
 
 
 def _clean_end_date(data: ScheduleCreate) -> Optional[date_cls]:
-    """종료일 정리. 시간이 있는 일정은 하루짜리로 취급하고, 시작일보다 빠르거나 너무 길면 오류."""
-    if data.event_time or not data.end_date:
+    """종료일 정리. 시작일보다 빠르거나 너무 길면 오류, 시작일과 같으면 하루짜리로 취급."""
+    if not data.end_date:
         return None
     if data.end_date < data.event_date:
         raise HTTPException(400, "종료일은 시작 날짜보다 빠를 수 없습니다")
@@ -335,7 +335,11 @@ def _event_datetimes(event: ScheduleEvent):
             start = datetime.combine(event.event_date, datetime.min.time()).replace(
                 hour=int(hh), minute=int(mm)
             )
-            return start, start + timedelta(hours=1), False
+            end = start + timedelta(hours=1)
+            if event.end_date and event.end_date > event.event_date:
+                # 종료 시각은 저장하지 않아서 마지막 날 (시작 시각 + 1시간)으로 근사
+                end = datetime.combine(event.end_date, start.time()) + timedelta(hours=1)
+            return start, end, False
         except ValueError:
             pass
     start = datetime.combine(event.event_date, datetime.min.time())

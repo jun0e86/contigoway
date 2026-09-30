@@ -251,7 +251,7 @@
     <div class="field"><label>제목</label><input type="text" id="evTitle"></div>
     <div class="field"><label>날짜</label><input type="date" id="evDate"></div>
     <div class="field"><label>종료일 (선택 · 며칠짜리 일정)</label><input type="date" id="evEndDate"></div>
-    <div class="field"><label>시간 (선택)</label><input type="time" id="evTime" oninput="syncEndDateState()"></div>
+    <div class="field"><label>시간 (선택)</label><input type="time" id="evTime"></div>
     <div class="field"><label>메모 (선택)</label><textarea id="evDesc"></textarea></div>
     <div class="sheet-actions">
       <button class="btn-danger" id="evDeleteBtn" style="display:none" onclick="deleteEvent()">삭제</button>
@@ -446,12 +446,6 @@ function openEventById(id){
   const e = monthEvents.find(x=>x.id===id);
   if(e) openEventDetail(e);
 }
-function syncEndDateState(){
-  const hasTime = !!document.getElementById('evTime').value;
-  const end = document.getElementById('evEndDate');
-  if(hasTime) end.value = '';
-  end.disabled = hasTime;
-}
 
 function renderCalendar(){
   if(displayMode === 'list'){ renderAgenda(); return; }
@@ -568,7 +562,6 @@ function openEventEditor(event, defaultDate){
   document.getElementById('evDate').value = event ? event.event_date : (defaultDate || new Date().toISOString().slice(0,10));
   document.getElementById('evTime').value = event ? (event.event_time||'') : '';
   document.getElementById('evEndDate').value = event ? (event.end_date||'') : '';
-  syncEndDateState();
   document.getElementById('evDesc').value = event ? (event.description||'') : '';
   document.getElementById('evDeleteBtn').style.display = event ? 'block' : 'none';
   document.getElementById('eventOverlay').classList.add('open');
@@ -579,7 +572,7 @@ async function saveEvent(){
   const title = document.getElementById('evTitle').value.trim();
   const event_date = document.getElementById('evDate').value;
   const event_time = document.getElementById('evTime').value || null;
-  const end_date = (!event_time && document.getElementById('evEndDate').value) || null;
+  const end_date = document.getElementById('evEndDate').value || null;
   const description = document.getElementById('evDesc').value.trim() || null;
   if(!title || !event_date){ alert('제목과 날짜를 입력해주세요'); return; }
   if(end_date && end_date < event_date){ alert('종료일은 시작 날짜보다 빠를 수 없어요'); return; }
