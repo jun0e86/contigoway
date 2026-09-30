@@ -38,12 +38,6 @@
   .search-box input:focus{border-color:var(--blue)}
   .search-box button{background:var(--black);color:#fff;border:none;border-radius:12px;padding:0 22px;font-size:.9rem;font-weight:600;cursor:pointer}
   .search-box button:disabled{opacity:.5;cursor:default}
-  .search-box .card-btn{background:#FEE500;color:#191919;padding:0 16px;display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .search-box .card-btn svg{flex-shrink:0}
-  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--black);color:#fff;
-    padding:12px 18px;border-radius:12px;font-size:.85rem;opacity:0;pointer-events:none;transition:all .25s ease;z-index:100;max-width:90vw;text-align:center}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  @media(max-width:640px){ .search-box .card-btn span{display:none} .search-box .card-btn{padding:0 14px} }
   .hint{font-size:.76rem;color:var(--gray-light);margin-bottom:18px}
   .hint b{color:var(--gray)}
 
@@ -70,12 +64,6 @@
   .ref-card .ref-body{font-size:.83rem;color:var(--gray);line-height:1.7;white-space:pre-wrap}
 
   .disclaimer{margin-top:32px;padding:16px 18px;background:var(--panel);border-radius:14px;font-size:.78rem;color:var(--gray-light);line-height:1.6}
-  .breadcrumb-bar{background:var(--panel);border-bottom:1px solid var(--line)}
-  .breadcrumb{max-width:980px;margin:0 auto;padding:8px 22px;display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--gray)}
-  .breadcrumb a{color:var(--gray);text-decoration:none}
-  .breadcrumb a:hover{color:var(--black)}
-  .breadcrumb .crumb-sep{color:var(--line)}
-  .breadcrumb .crumb-current{color:var(--black);font-weight:600}
 </style>
 </head>
 <body>
@@ -104,15 +92,6 @@
   </div>
 </nav>
 
-<div class="breadcrumb-bar">
-  <div class="breadcrumb">
-    <a href="/index.html">🏠 홈</a>
-    <span class="crumb-sep">›</span>
-    <span class="crumb-current">법령검색</span>
-  </div>
-</div>
-
-
 <main>
   <div class="page-header">
     <h1>법령검색</h1>
@@ -123,16 +102,11 @@
     <input id="q" type="text" placeholder="예: 환자 동의 없이 진료기록을 공유했어요" maxlength="500"
            onkeydown="if(event.key==='Enter') runSearch()">
     <button id="searchBtn" onclick="runSearch()">검색</button>
-    <button id="cardBtn" class="card-btn" onclick="sendKakaoCard()" disabled title="검색 결과 핵심을 내 카카오톡으로 받기">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#191919" d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.8 5.3 4.6 6.7l-1 3.6c-.1.4.3.7.6.5l4.3-2.8c.5.1 1 .1 1.5.1 5.5 0 10-3.6 10-8S17.5 3 12 3z"/></svg>
-      <span>카드뉴스</span>
-    </button>
   </div>
   <div class="hint">키워드 기반 검색입니다. <b>법률 자문이 아니며</b>, 참고용으로만 활용해주세요.</div>
 
   <div id="result"></div>
 </main>
-<div class="toast" id="toast"></div>
 
 <script>
 const API = '/api';
@@ -210,8 +184,6 @@ async function runSearch(){
   if(!q){ result.innerHTML = '<div class="state-msg error">상황을 입력해주세요.</div>'; return; }
 
   btn.disabled = true;
-  document.getElementById('cardBtn').disabled = true;
-  lastSearch = null;
   result.innerHTML = '<div class="state-msg">검색 중입니다...</div>';
 
   try{
@@ -221,10 +193,6 @@ async function runSearch(){
       result.innerHTML = `<div class="state-msg error">${escapeHtml(data.detail || '검색에 실패했습니다.')}</div>`;
       return;
     }
-
-    lastSearch = { q, data };
-    document.getElementById('cardBtn').disabled = !(
-      (data.ref_articles||[]).length || (data.precedents||[]).length || (data.interpretations||[]).length);
 
     let html = '';
     if(data.keywords && data.keywords.length){
@@ -251,128 +219,5 @@ async function runSearch(){
   }
 }
 </script>
-<script>
-// ── 카카오톡 카드뉴스로 받기 ──
-let lastSearch = null;
-function showToast(msg){
-  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(showToast._t); showToast._t = setTimeout(()=>t.classList.remove('show'), 3200);
-}
-function shorten(s, n){
-  s = (s||'').replace(/\s+/g,' ').trim();
-  if(s.length <= n) return s;
-  let cut = s.slice(0, n-1);
-  const sp = cut.lastIndexOf(' ');
-  if(sp >= Math.floor(n*0.6)) cut = cut.slice(0, sp);      // 단어 중간에서 끊기지 않게
-  return cut.replace(/[\s·,(「\[]+$/,'') + '…';
-}
-const PENAL_RE = /벌칙|양벌|과태료|벌금|처벌|법률의 착오/;
-// 검색어와의 관련도 점수. 첫 핵심어(서버가 가장 구체적이라고 본 낱말)가 들어 있으면 3점,
-// '환자·진료·기록'처럼 어디에나 나오는 낱말만 겹치면 0.5점, 그 밖의 핵심어는 1점.
-const GENERIC_KW = new Set(['환자','진료','기록','의료','병원','의사','직원','의료기관']);
-function kwScore(text, kws){
-  text = text || '';
-  return (kws||[]).reduce((n,k,i)=> n + (k && text.includes(k) ? (GENERIC_KW.has(k) ? 0.5 : (i === 0 ? 3 : 1)) : 0), 0);
-}
-function pickTop(list, scoreFn){
-  return list.map((x,i)=>({x, i, s: scoreFn(x)}))
-             .sort((a,b)=> b.s - a.s || a.i - b.i)          // 점수 높은 순, 같으면 원래 순서 유지
-             .map(o=>o.x);
-}
-// 긴 제목은 '앞부분…끝부분'으로 줄인다. 해석례 제목은 끝에 질문이 오는 경우가 많아서(…동의가 필요한지) 끝을 남기는 편이 뜻이 잘 보인다.
-function squeeze(s, n){
-  s = (s||'').replace(/\s+/g,' ').trim();
-  if(s.length <= n) return s;
-  const headMax = Math.floor((n-1) * 0.42);
-  let head = s.slice(0, headMax);
-  if(s[headMax] !== ' '){ const hsp = head.lastIndexOf(' '); if(hsp >= 4) head = head.slice(0, hsp); }   // 단어 중간에서 끊기지 않게
-  const tailMax = n - 1 - head.length;
-  const cutAt = s.length - tailMax;
-  let tail = s.slice(cutAt);
-  if(s[cutAt-1] !== ' '){ const tsp = tail.indexOf(' '); if(tsp >= 0 && tsp <= 4) tail = tail.slice(tsp+1); }
-  return head + '…' + tail;
-}
-function shortPrec(p){
-  const t = (p.title||'').trim();
-  const m = t.match(/^([^\[]{1,20})\[(.+)\]\s*$/);
-  const type = m ? m[1].trim() : '';
-  let body = m ? m[2] : t;
-  body = body.replace(/\s*(사안|사건|경우|취지|여부)$/,'');
-  return shorten((type ? type + ' · ' : '') + body, 26);
-}
-function shortExpc(e){
-  let t = (e.title || e.source_label || '').trim();
-  t = t.replace(/^[^-]{1,20}\s-\s/,'');                     // "민원인 - " 같은 질의 기관 접두어 제거
-  t = t.replace(/\s*\([^()]*관련\)\s*$/,'');                // 끝의 "(「법」 제N조 관련)" 제거
-  t = t.replace(/「[^」]{1,20}」\s*제\d+조(?:의\d+)?(?:제\d+항)?(?:제\d+호)?(?:의|에 따른|에 따라)?\s*/g,'');   // 제목 속 "「법」 제N조…" 인용 제거
-  t = t.replace(/\s*(?:에 해당하는지|인지|하는지)\s*(?:여부)?$/,'');
-  t = t.replace(/\s*여부$/,'');
-  return squeeze(t, 26);
-}
-function buildCardItems(d){
-  const kws = d.keywords || [];
-  // 서버가 '대표 조문'으로 붙인 조문은 top_refs 에서 count 가 0 이다
-  const anchorRefs = new Set((d.top_refs||[]).filter(r => r.count === 0).map(r => r.ref));
-  const arts = pickTop(d.ref_articles||[], a => PENAL_RE.test(a.title||'') ? -1 : 0);   // 서버 순서 유지, 벌칙류만 뒤로
-  const anchorArts = arts.filter(a => anchorRefs.has(a.ref));
-  const otherArts  = arts.filter(a => !anchorRefs.has(a.ref));
-  const artText = a => shorten(a.ref + (a.title ? ' (' + a.title + ')' : ''), 26);
-
-  // 대표 조문이 있으면 그것만(최대 3개). 2개 미만일 때만 다른 조문으로 채운다.
-  let A = anchorArts.slice(0,3);
-  if(A.length < 2) A = A.concat(otherArts.slice(0, 2 - A.length));
-
-  const pText = p => (p.title||'') + ' ' + (p.summary||'').slice(0,300);
-  const eText = e => (e.title||'') + ' ' + (e.question||'').slice(0,300);
-  const P = pickTop(d.precedents||[], p => kwScore(pText(p), kws));
-  const E = pickTop(d.interpretations||[], e => kwScore(eText(e), kws));
-
-  const items = [], seen = new Set();
-  const push = (label, text) => {
-    if(!text || items.length >= 5 || seen.has(label + text)) return;
-    seen.add(label + text); items.push({label, text});
-  };
-
-  A.forEach(a => push('조문', artText(a)));
-  // 검색어와 겹치는 낱말이 하나도 없는 판례·해석례는 넣지 않는다 (엉뚱한 사건이 핵심처럼 보이는 것 방지)
-  P.filter(p => kwScore(pText(p), kws) >= 1).slice(0,1).forEach(p => push('판례', shortPrec(p)));
-  E.filter(e => kwScore(eText(e), kws) >= 1).forEach(e => push('해석례', shortExpc(e)));
-
-  // 그래도 3줄 미만이면 남은 것으로 채운다
-  if(items.length < 3){
-    otherArts.forEach(a => { if(items.length < 3) push('조문', artText(a)); });
-    E.forEach(e => { if(items.length < 3) push('해석례', shortExpc(e)); });
-    P.forEach(p => { if(items.length < 3) push('판례', shortPrec(p)); });
-  }
-  if(items.length < 5 && kws.length) push('키워드', shorten(kws.join(' · '), 26));
-  return items;
-}
-async function sendKakaoCard(){
-  if(!lastSearch) return;
-  if(!confirm('검색 결과 핵심을 내 카카오톡(나와의 채팅)으로 보낼까요?\n\n카카오톡에 내용이 저장되니, 검색어에 환자 이름 등 개인 식별정보가 없는지 확인해 주세요.\n(주민번호·전화번호·이메일은 자동으로 가려져요)')) return;
-  const btn = document.getElementById('cardBtn'); btn.disabled = true;
-  const d = lastSearch.data;
-  try{
-    const r = await authFetch('/legal-card/send', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ q: lastSearch.q, items: buildCardItems(d),
-        counts:{articles:(d.ref_articles||[]).length, precedents:(d.precedents||[]).length, interpretations:(d.interpretations||[]).length} })
-    });
-    const res = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(res.detail || '보내지 못했어요');
-    showToast('카카오톡 "나와의 채팅"으로 보냈어요 💬' + (res.masked ? ' (개인정보 일부를 가렸어요)' : ''));
-  }catch(e){
-    showToast(e.message || '카드뉴스를 보내지 못했어요');
-  }finally{
-    btn.disabled = false;
-  }
-}
-// 카드의 [검색 결과 전체 보기]로 들어오면 같은 검색어로 자동 검색
-(function(){
-  const q = new URLSearchParams(location.search).get('q');
-  if(q){ document.getElementById('q').value = q; runSearch(); }
-})();
-</script>
-<script src="/visit-counter.js"></script>
 </body>
 </html>

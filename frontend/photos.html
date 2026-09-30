@@ -97,12 +97,6 @@
   .emoji-popup.open{display:grid}
   .emoji-popup button{background:none;border:none;font-size:1.15rem;padding:5px;cursor:pointer;border-radius:6px}
   .emoji-popup button:hover{background:var(--panel)}
-  .breadcrumb-bar{background:var(--panel);border-bottom:1px solid var(--line)}
-  .breadcrumb{max-width:980px;margin:0 auto;padding:8px 22px;display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--gray)}
-  .breadcrumb a{color:var(--gray);text-decoration:none}
-  .breadcrumb a:hover{color:var(--black)}
-  .breadcrumb .crumb-sep{color:var(--line)}
-  .breadcrumb .crumb-current{color:var(--black);font-weight:600}
 </style>
 </head>
 <body>
@@ -130,15 +124,6 @@
     </div>
   </div>
 </nav>
-
-<div class="breadcrumb-bar">
-  <div class="breadcrumb">
-    <a href="/index.html">🏠 홈</a>
-    <span class="crumb-sep">›</span>
-    <span class="crumb-current">사진모음</span>
-  </div>
-</div>
-
 
 <main>
   <div class="page-header">
@@ -510,6 +495,5 @@ async function deletePhoto(id){
   await loadGrid();
 }
 </script>
-<script src="/visit-counter.js"></script>
 </body>
 </html>
