@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -11,6 +11,7 @@ from models_addition import GoogleAccount
 
 CALENDAR_ID = "primary"
 DEFAULT_DURATION_MINUTES = 60  # 시간이 지정된 일정은 기본 1시간짜리로 구글에 등록
+KST = timezone(timedelta(hours=9))  # 한국은 DST가 없어서 고정 오프셋으로 충분
 
 
 def get_calendar_service(db: Session, account: GoogleAccount):
@@ -82,8 +83,53 @@ def create_event(service, body: dict) -> dict:
     return service.events().insert(calendarId=CALENDAR_ID, body=body).execute()
 
 
+def _local_start(start: dict):
+    """Google start 값 -> (날짜 ISO 문자열, 'HH:MM' 또는 None). 시각은 KST 기준으로 맞춘다."""
+    if "dateTime" in start:
+        dt = datetime.fromisoformat(start["dateTime"])
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(KST)
+        return dt.date().isoformat(), dt.strftime("%H:%M")
+    return start["date"], None
+
+
+def _shifted_times(current: dict, body: dict):
+    """시작 날짜/시각이 바뀐 경우의 새 (start, end). 기존 일정 길이(며칠짜리/몇 분짜리)는 유지한다."""
+    cur_s, cur_e, new_s = current["start"], current["end"], body["start"]
+
+    if "date" in cur_s and "date" in new_s:  # 종일 -> 종일
+        days = (date.fromisoformat(cur_e["date"]) - date.fromisoformat(cur_s["date"])).days
+        start = date.fromisoformat(new_s["date"])
+        end = start + timedelta(days=max(days, 1))
+        return {"date": start.isoformat()}, {"date": end.isoformat()}
+
+    if "dateTime" in cur_s and "dateTime" in new_s:  # 시간 -> 시간
+        duration = datetime.fromisoformat(cur_e["dateTime"]) - datetime.fromisoformat(cur_s["dateTime"])
+        start = datetime.fromisoformat(new_s["dateTime"])  # body의 시각은 KST 기준 naive 값
+        end = start + duration
+        return (
+            {"dateTime": start.isoformat(), "timeZone": "Asia/Seoul"},
+            {"dateTime": end.isoformat(), "timeZone": "Asia/Seoul"},
+        )
+
+    return body["start"], body["end"]  # 종일 <-> 시간으로 형태가 바뀐 경우는 body 그대로
+
+
 def update_event(service, google_event_id: str, body: dict) -> dict:
-    return service.events().update(calendarId=CALENDAR_ID, eventId=google_event_id, body=body).execute()
+    """구글 일정을 통째로 덮어쓰지 않고 바뀐 필드만 patch한다.
+    - 제목/설명만 patch -> 알림, 색상, 장소, 참석자, 반복 규칙이 그대로 유지된다.
+    - 시작 날짜/시각이 바뀐 경우에만 start/end를 바꾸고, 기존 일정 길이는 유지한다.
+    """
+    current = service.events().get(calendarId=CALENDAR_ID, eventId=google_event_id).execute()
+
+    patch = {
+        "summary": body["summary"],
+        "description": body.get("description", ""),
+    }
+    if _local_start(current["start"]) != _local_start(body["start"]):
+        patch["start"], patch["end"] = _shifted_times(current, body)
+
+    return service.events().patch(calendarId=CALENDAR_ID, eventId=google_event_id, body=patch).execute()
 
 
 def delete_event(service, google_event_id: str) -> None:
